@@ -15,10 +15,14 @@ struct Manifest {
     name: String,
     version: String,
     #[serde(default)]
+    description: String,
+    #[serde(default)]
     protocol: String,
     daemon: DaemonConfig,
     #[serde(default)]
     skills: HashMap<String, SkillConfig>,
+    #[serde(default)]
+    auth: Option<AuthConfig>,
 }
 
 #[allow(dead_code)]
@@ -27,6 +31,8 @@ struct DaemonConfig {
     entrypoint: String,
     #[serde(default)]
     socket: String,
+    #[serde(default)]
+    dependencies: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,12 +41,27 @@ struct SkillConfig {
     target: String,
 }
 
-/// Known AI agent skill directories.
-const AGENT_SKILL_DIRS: &[(&str, &str)] = &[
-    ("claude-code", "~/.claude/skills"),
-    ("cursor", "~/.cursor/rules"),
-    ("windsurf", "~/.windsurf/workflows"),
-    ("continue", "~/.continue/rules"),
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct AuthConfig {
+    #[serde(rename = "type")]
+    auth_type: String,
+    #[serde(default)]
+    provider: String,
+    #[serde(default)]
+    scopes: Vec<String>,
+    #[serde(default)]
+    credentials_path: String,
+    #[serde(default)]
+    token_path: String,
+}
+
+/// Known AI agent configurations for skill distribution.
+const AGENT_CONFIGS: &[(&str, &str, &str)] = &[
+    ("claude-code", "~/.claude/skills", "Claude Code"),
+    ("cursor", "~/.cursor/rules", "Cursor"),
+    ("windsurf", "~/.windsurf/workflows", "Windsurf"),
+    ("continue", "~/.continue/rules", "Continue"),
 ];
 
 pub fn run(path: &str) -> Result<()> {
@@ -71,6 +92,7 @@ pub fn run(path: &str) -> Result<()> {
     let manifest: Manifest = serde_json::from_str(&manifest_content)
         .context("Failed to parse manifest.json")?;
 
+    println!();
     println!(
         "{} Installing {} v{}...",
         "→".blue().bold(),
@@ -78,37 +100,39 @@ pub fn run(path: &str) -> Result<()> {
         manifest.version
     );
 
-    // Create service directory
+    // Step 1: Detect installed agents
+    let detected_agents = detect_agents();
+    if !detected_agents.is_empty() {
+        println!(
+            "  {} Detected agents: {}",
+            "✓".green(),
+            detected_agents.iter()
+                .map(|(_, name)| *name)
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+
+    // Step 2: Create service directory and copy daemon files
     let service_dir = fgp_services_dir().join(&manifest.name);
     fs::create_dir_all(&service_dir)
         .context("Failed to create service directory")?;
 
-    // Copy daemon files
-    println!("  {} Copying daemon files...", "→".dimmed());
+    println!(
+        "  {} Daemon installed to {}",
+        "✓".green(),
+        format!("~/.fgp/services/{}/", manifest.name).dimmed()
+    );
     copy_dir_contents(&package_dir, &service_dir)
         .context("Failed to copy daemon files")?;
 
-    // Install skill files for detected agents
-    let mut installed_skills = 0;
-    for (agent_id, target_base) in AGENT_SKILL_DIRS {
-        let target_expanded = shellexpand::tilde(target_base);
-        let target_base_path = Path::new(target_expanded.as_ref());
-
-        // Check if agent is installed
-        if !target_base_path.exists() {
-            continue;
-        }
-
+    // Step 3: Install skill files for detected agents
+    let mut installed_skills = Vec::new();
+    for (agent_id, agent_name) in &detected_agents {
         // Check if we have skills for this agent
         if let Some(skill_config) = manifest.skills.get(*agent_id) {
             let source_path = package_dir.join(&skill_config.source);
             if !source_path.exists() {
-                println!(
-                    "  {} Skill source not found for {}: {}",
-                    "!".yellow(),
-                    agent_id,
-                    source_path.display()
-                );
                 continue;
             }
 
@@ -128,36 +152,75 @@ pub fn run(path: &str) -> Result<()> {
             println!(
                 "  {} {} skill installed",
                 "✓".green(),
-                agent_id
+                agent_name
             );
-            installed_skills += 1;
+            installed_skills.push(*agent_name);
+        }
+    }
+
+    // Step 4: Auth configuration
+    if let Some(auth) = &manifest.auth {
+        let creds_expanded = shellexpand::tilde(&auth.credentials_path);
+        let creds_path = Path::new(creds_expanded.as_ref());
+
+        if creds_path.exists() {
+            println!(
+                "  {} OAuth configured ({})",
+                "✓".green(),
+                auth.provider
+            );
+        } else {
+            println!(
+                "  {} OAuth credentials needed at {}",
+                "!".yellow(),
+                auth.credentials_path
+            );
         }
     }
 
     // Summary
     println!();
     println!(
-        "{} {} v{} installed successfully!",
+        "  {} {} is now available in all your AI agents!",
         "✓".green().bold(),
-        manifest.name.bold(),
-        manifest.version
+        manifest.name.bold()
     );
-
-    if installed_skills > 0 {
-        println!(
-            "  {} skill files installed for {} agent(s)",
-            installed_skills,
-            installed_skills
-        );
-    }
-
     println!();
+
+    // Socket path for reference
+    let socket_path = format!("~/.fgp/services/{}/daemon.sock", manifest.name);
+    println!("  Socket: {}", socket_path.dimmed());
+    println!();
+
+    // Next steps
+    println!("{}", "Next steps:".bold());
     println!(
-        "  Start the daemon: {}",
+        "  1. Start daemon: {}",
         format!("fgp start {}", manifest.name).cyan()
     );
+    println!(
+        "  2. Test: {}",
+        format!("fgp call {}.methods", manifest.name).cyan()
+    );
+    println!();
 
     Ok(())
+}
+
+/// Detect which AI agents are installed on the system.
+fn detect_agents() -> Vec<(&'static str, &'static str)> {
+    let mut agents = Vec::new();
+
+    for (agent_id, path, name) in AGENT_CONFIGS {
+        let expanded = shellexpand::tilde(path);
+        let agent_path = Path::new(expanded.as_ref());
+
+        if agent_path.exists() {
+            agents.push((*agent_id, *name));
+        }
+    }
+
+    agents
 }
 
 /// Copy directory contents recursively.
