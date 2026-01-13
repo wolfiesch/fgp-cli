@@ -4,6 +4,7 @@
 //!
 //! ```bash
 //! fgp agents              # Detect installed AI agents
+//! fgp new <name>          # Create a new FGP package from template
 //! fgp start <service>     # Start a daemon
 //! fgp stop <service>      # Stop a daemon
 //! fgp status              # Show running daemons
@@ -32,6 +33,24 @@ struct Cli {
 enum Commands {
     /// Detect installed AI agents on this machine
     Agents,
+
+    /// Create a new FGP package from template
+    New {
+        /// Package name (e.g., "my-service")
+        name: String,
+
+        /// Service description
+        #[arg(short, long)]
+        description: Option<String>,
+
+        /// Implementation language (rust, python)
+        #[arg(short, long, default_value = "rust")]
+        language: String,
+
+        /// Skip git initialization
+        #[arg(long)]
+        no_git: bool,
+    },
 
     /// Start a daemon service
     Start {
@@ -94,6 +113,12 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Agents => commands::agents::run(),
+        Commands::New {
+            name,
+            description,
+            language,
+            no_git,
+        } => commands::new::run(&name, description.as_deref(), &language, no_git),
         Commands::Start { service, foreground } => commands::start::run(&service, foreground),
         Commands::Stop { service } => commands::stop::run(&service),
         Commands::Status { verbose } => commands::status::run(verbose),

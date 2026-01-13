@@ -6,10 +6,41 @@ use colored::Colorize;
 use super::service_socket_path;
 
 pub fn run(method: &str, params: &str, service_override: Option<&str>) -> Result<()> {
-    // Infer service from method name (e.g., "gmail.list" -> "gmail")
-    let service = service_override.unwrap_or_else(|| {
-        method.split('.').next().unwrap_or(method)
-    });
+    // Resolve service/socket and normalize the method we send over the wire.
+    //
+    // Preferred:
+    // - Fully-qualified method names: "gmail.search"
+    //
+    // Also supported:
+    // - Built-in methods with explicit service: `fgp call methods --service gmail`
+    // - Action-only with explicit service: `fgp call search --service gmail`
+    let (service, wire_method) = if let Some(service) = service_override {
+        if method.contains('.') {
+            // If the user provided --service, ensure it matches the namespace.
+            let namespace = method.split('.').next().unwrap_or("");
+            if namespace != service {
+                bail!(
+                    "Method namespace '{}' does not match --service '{}'",
+                    namespace,
+                    service
+                );
+            }
+            (service, method.to_string())
+        } else {
+            // Built-ins are un-namespaced; service methods get namespaced here.
+            let wire_method = match method {
+                "health" | "methods" | "stop" | "bundle" => method.to_string(),
+                _ => format!("{}.{}", service, method),
+            };
+            (service, wire_method)
+        }
+    } else {
+        // Infer service from method name (e.g., "gmail.search" -> "gmail").
+        // If method is not namespaced, we keep the legacy behavior of treating it as both
+        // service and method (e.g., "echo" for the echo service).
+        let service = method.split('.').next().unwrap_or(method);
+        (service, method.to_string())
+    };
 
     let socket_path = service_socket_path(service);
 
@@ -30,7 +61,7 @@ pub fn run(method: &str, params: &str, service_override: Option<&str>) -> Result
         .context("Failed to connect to daemon")?;
 
     let start = std::time::Instant::now();
-    let response = client.call(method, params_value)?;
+    let response = client.call(&wire_method, params_value)?;
     let elapsed = start.elapsed();
 
     // Print response

@@ -1,0 +1,72 @@
+# fgp-{{NAME}}
+
+{{DESCRIPTION}} via Fast Gateway Protocol (FGP).
+
+## Features
+
+- **10x faster** than MCP-based tools (10-30ms vs 200-500ms)
+- **Multi-agent support**: Works with Claude Code, Cursor, Windsurf
+- **One install**: `fgp install {{NAME}}` configures all your AI agents
+
+## Installation
+
+```bash
+fgp install {{NAME}}
+```
+
+This will:
+1. Install the daemon to `~/.fgp/services/{{NAME}}/`
+2. Detect your installed AI agents
+3. Copy skill files to each agent's config directory
+
+## Usage
+
+### List Methods
+
+```bash
+fgp call {{NAME}}.methods
+```
+
+### Check Health
+
+```bash
+fgp call {{NAME}}.health
+```
+
+## Development
+
+### Build
+
+```bash
+cargo build --release
+```
+
+### Run
+
+```bash
+cargo run --release
+```
+
+### Test
+
+```bash
+fgp call {{NAME}}.methods
+```
+
+## Performance
+
+| Metric | FGP | Traditional MCP |
+|--------|-----|-----------------|
+| Cold start | ~50ms | ~300-500ms |
+| Warm call | ~10-30ms | N/A (always cold) |
+| Batch support | Yes | No |
+
+## License
+
+MIT License
+
+## Related
+
+- [FGP Protocol](https://github.com/wolfiesch/fgp) - Protocol specification
+- [fgp-daemon](https://github.com/wolfiesch/fgp-daemon) - Rust SDK for building daemons
+- [fgp-cli](https://github.com/wolfiesch/fgp-cli) - Command-line interface

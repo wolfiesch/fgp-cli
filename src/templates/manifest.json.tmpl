@@ -1,0 +1,28 @@
+{
+  "name": "{{NAME}}",
+  "version": "1.0.0",
+  "description": "{{DESCRIPTION}}",
+  "protocol": "fgp@1",
+  "author": "",
+  "license": "MIT",
+  "daemon": {
+    "entrypoint": "./target/release/fgp-{{NAME}}",
+    "socket": "{{NAME}}/daemon.sock"
+  },
+  "methods": [],
+  "skills": {
+    "claude-code": {
+      "source": "./skills/claude-code/",
+      "target": "~/.claude/skills/{{NAME}}/"
+    },
+    "cursor": {
+      "source": "./skills/cursor/",
+      "target": "~/.cursor/rules/"
+    },
+    "windsurf": {
+      "source": "./skills/windsurf/",
+      "target": "~/.windsurf/skills/"
+    }
+  },
+  "platforms": ["darwin", "linux"]
+}

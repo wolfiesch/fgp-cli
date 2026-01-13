@@ -1,0 +1,104 @@
+//! FGP {{NAME_TITLE}} Daemon
+//!
+//! {{DESCRIPTION}}
+//!
+//! # Methods
+//! - `health` - Check daemon health
+//! - `methods` - List available methods
+//!
+//! # Run
+//! ```bash
+//! cargo run --release
+//! ```
+//!
+//! # Test
+//! ```bash
+//! fgp call {{NAME}}.methods
+//! fgp call {{NAME}}.health
+//! ```
+
+use anyhow::{bail, Result};
+use fgp_daemon::service::{HealthStatus, MethodInfo};
+use fgp_daemon::{FgpServer, FgpService};
+use serde_json::Value;
+use std::collections::HashMap;
+
+/// {{NAME_TITLE}} service implementation.
+struct {{NAME_PASCAL}}Service;
+
+impl FgpService for {{NAME_PASCAL}}Service {
+    fn name(&self) -> &str {
+        "{{NAME}}"
+    }
+
+    fn version(&self) -> &str {
+        "1.0.0"
+    }
+
+    fn dispatch(&self, method: &str, params: HashMap<String, Value>) -> Result<Value> {
+        match method {
+            // TODO: Add your method handlers here
+            // Example:
+            // "my_method" => self.my_method(params),
+            _ => bail!("Unknown method: {}", method),
+        }
+    }
+
+    fn method_list(&self) -> Vec<MethodInfo> {
+        vec![
+            // TODO: Add your method definitions here
+            // Example:
+            // MethodInfo {
+            //     name: "my_method".into(),
+            //     description: "Does something useful".into(),
+            //     params: vec![
+            //         ParamInfo {
+            //             name: "input".into(),
+            //             param_type: "string".into(),
+            //             required: true,
+            //             default: None,
+            //         },
+            //     ],
+            // },
+        ]
+    }
+
+    fn on_start(&self) -> Result<()> {
+        tracing::info!("{{NAME_TITLE}} daemon starting");
+        Ok(())
+    }
+
+    fn health_check(&self) -> HashMap<String, HealthStatus> {
+        let mut status = HashMap::new();
+        status.insert(
+            "service".into(),
+            HealthStatus {
+                ok: true,
+                latency_ms: None,
+                message: Some("{{NAME_TITLE}} daemon running".into()),
+            },
+        );
+        status
+    }
+}
+
+fn main() -> Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter("fgp_{{NAME}}=debug,fgp_daemon=debug")
+        .init();
+
+    println!("Starting {{NAME_TITLE}} daemon...");
+    println!("Socket: ~/.fgp/services/{{NAME}}/daemon.sock");
+    println!();
+    println!("Test with:");
+    println!("  fgp call {{NAME}}.methods");
+    println!("  fgp call {{NAME}}.health");
+    println!();
+
+    let service = {{NAME_PASCAL}}Service;
+    let server = FgpServer::new(service, "~/.fgp/services/{{NAME}}/daemon.sock")?;
+    server.serve()?;
+
+    Ok(())
+}

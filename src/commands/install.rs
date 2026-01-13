@@ -200,7 +200,7 @@ pub fn run(path: &str) -> Result<()> {
     );
     println!(
         "  2. Test: {}",
-        format!("fgp call {}.methods", manifest.name).cyan()
+        format!("fgp methods {}", manifest.name).cyan()
     );
     println!();
 

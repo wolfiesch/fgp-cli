@@ -1,0 +1,18 @@
+# Continue rules for {{NAME}}
+# Place in ~/.continue/rules/
+
+rules:
+  - name: fgp-{{NAME}}
+    description: "{{DESCRIPTION}} via FGP daemon (10x faster than MCP)"
+    instructions: |
+      Use `fgp call {{NAME}}.<method> -p '{params}'` for {{DESCRIPTION_LOWER}}.
+
+      Available commands:
+      - `fgp call {{NAME}}.methods` - List available methods
+      - `fgp call {{NAME}}.health` - Check daemon health
+
+      All commands return JSON. Parse the output for structured data.
+
+      Setup:
+      1. Start daemon: `fgp start {{NAME}}`
+      2. Test: `fgp call {{NAME}}.methods`

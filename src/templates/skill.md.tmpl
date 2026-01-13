@@ -1,0 +1,64 @@
+---
+name: {{NAME}}
+description: {{DESCRIPTION}} via FGP daemon (10x faster than MCP)
+tools: []
+---
+
+# {{NAME_TITLE}} Skill
+
+{{DESCRIPTION}} via FGP daemon. 10x faster than MCP-based tools.
+
+## Available Methods
+
+| Method | Description |
+|--------|-------------|
+| `{{NAME}}.methods` | List available methods |
+| `{{NAME}}.health` | Check daemon health |
+
+## Usage Examples
+
+### List Methods
+
+```bash
+fgp call {{NAME}}.methods
+```
+
+### Check Health
+
+```bash
+fgp call {{NAME}}.health
+```
+
+## Response Format
+
+All methods return JSON.
+
+```json
+{
+  "result": { ... },
+  "meta": {
+    "duration_ms": 15,
+    "service": "{{NAME}}"
+  }
+}
+```
+
+## Setup
+
+1. Install: `fgp install {{NAME}}`
+2. Start daemon: `fgp start {{NAME}}`
+3. Test: `fgp call {{NAME}}.methods`
+
+## Performance
+
+| Metric | FGP | Traditional MCP |
+|--------|-----|-----------------|
+| Cold start | ~50ms | ~300-500ms |
+| Warm call | ~10-30ms | N/A (always cold) |
+| Batch support | Yes | No |
+
+## Troubleshooting
+
+- **Daemon not running**: `fgp start {{NAME}}`
+- **Check status**: `fgp status {{NAME}}`
+- **View health**: `fgp health {{NAME}}`

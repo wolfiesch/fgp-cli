@@ -1,0 +1,31 @@
+[package]
+name = "fgp-{{NAME}}"
+version = "1.0.0"
+edition = "2021"
+description = "{{DESCRIPTION}}"
+authors = [""]
+license = "MIT"
+
+[[bin]]
+name = "fgp-{{NAME}}"
+path = "src/main.rs"
+
+[dependencies]
+# FGP daemon SDK
+fgp-daemon = { git = "https://github.com/wolfiesch/fgp-daemon" }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

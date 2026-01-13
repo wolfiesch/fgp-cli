@@ -1,0 +1,36 @@
+# {{NAME_TITLE}} Workflow
+
+{{DESCRIPTION}} via FGP daemon. 10x faster than MCP.
+
+## Commands
+
+### List Methods
+
+```bash
+fgp call {{NAME}}.methods
+```
+
+### Check Health
+
+```bash
+fgp call {{NAME}}.health
+```
+
+## Workflow
+
+1. User requests action related to {{DESCRIPTION_LOWER}}
+2. Run `fgp call {{NAME}}.<method> -p '{params}'`
+3. Parse JSON response
+4. Present results to user
+
+## Response Handling
+
+All commands return JSON with structured data:
+- `result`: The method's response data
+- `meta`: Timing and service information
+
+## Troubleshooting
+
+- Check daemon running: `fgp status {{NAME}}`
+- Start daemon: `fgp start {{NAME}}`
+- View health: `fgp health {{NAME}}`

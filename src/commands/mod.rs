@@ -5,6 +5,7 @@ pub mod call;
 pub mod health;
 pub mod install;
 pub mod methods;
+pub mod new;
 pub mod start;
 pub mod status;
 pub mod stop;

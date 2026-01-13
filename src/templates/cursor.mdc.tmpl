@@ -1,0 +1,31 @@
+---
+description: {{DESCRIPTION}} via FGP daemon (10x faster than MCP)
+globs: ["**/*"]
+alwaysApply: false
+---
+
+# {{NAME_TITLE}} Integration
+
+Use `fgp call {{NAME}}.*` commands for {{DESCRIPTION_LOWER}}.
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `fgp call {{NAME}}.methods` | List available methods |
+| `fgp call {{NAME}}.health` | Check daemon health |
+
+## Usage
+
+```bash
+fgp call {{NAME}}.<method> -p '{"param": "value"}'
+```
+
+## Response Format
+
+All commands return JSON. Parse output for structured data.
+
+## When to Use
+
+- When the user asks about {{DESCRIPTION_LOWER}}
+- When you need to interact with the {{NAME}} service
