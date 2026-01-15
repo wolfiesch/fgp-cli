@@ -57,9 +57,9 @@ More content...
 
 ## Cursor (.cursorrules)
 
-**Fidelity: ~30%** | **Quality Grade: F (36%)** | **Pattern: `.cursorrules`, `*.cursorrules`**
+**Fidelity: ~70%** | **Quality Grade: C (76%)** | **Pattern: `.cursorrules`, `*.cursorrules`**
 
-Pure markdown format with no structured metadata. Daemons/methods must be inferred.
+Pure markdown format with no structured metadata. Daemons/methods extracted from `daemon.method` bullet patterns.
 
 ### Structure
 
@@ -86,8 +86,8 @@ Always be helpful...
 | name | First H1 header or filename | Medium |
 | description | First paragraph after H1 | Medium |
 | version | Default `1.0.0` | Low |
-| daemons | Pattern matching `daemon.method` | Medium |
-| methods | Pattern matching | Medium |
+| daemons | Bullet list pattern `daemon.method` | High |
+| methods | Bullet list pattern extraction | High |
 | triggers | Extracted from content | Low |
 | instructions | Full content | High |
 
@@ -101,9 +101,8 @@ Methods are detected via regex:
 ### Limitations
 
 - No version or author information
-- Daemon/method info inferred from text
+- Requires `daemon.method` format in bullet lists for best results
 - No structured trigger configuration
-- Pure markdown has low fidelity
 
 ---
 
@@ -468,7 +467,7 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 | **Claude Code** | 🔵 B (82%) | ~65% | ⚠️ Partial | Full skill definitions with frontmatter |
 | **Zed** | 🟡 C (75%) | ~70% | ✅ Full | Context rules with bullet lists |
 | **Codex** | 🟡 C (75%) | ~70% | ✅ Full | Tool-centric configurations |
-| **Cursor** | 🔴 F (36%) | ~30% | ❌ None | Project-level coding guidelines |
+| **Cursor** | 🟡 C (76%) | ~70% | ✅ Full | Project-level coding guidelines |
 | **MCP** | 🔴 F (28%) | ~25% | ❌ None | API/tool schema definitions |
 
 ### Field Recovery by Format
@@ -480,7 +479,7 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 | **description** | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ✅ High |
 | **author** | ✅ High | ⚠️ Partial | ❌ None | ❌ None | ❌ None | ❌ None |
 | **instructions** | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ⚠️ Medium |
-| **daemons** | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ✅ Full | ❌ None | ❌ None |
+| **daemons** | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ✅ Full | ✅ Full | ❌ None |
 | **triggers** | ✅ High | ⚠️ Medium | ⚠️ Low | ❌ None | ❌ None | ❌ None |
 | **workflows** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
 | **config** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
@@ -497,16 +496,20 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 3. **Zed format improved significantly** (F→C) through markdown bullet list extraction
    and role name parsing from intro lines like "specialized in X".
 
-4. **Claude Code scores well overall** but loses some daemon methods because they're
+4. **Cursor now achieves full daemon recovery** (F→C, 76%) by sharing the markdown
+   bullet extraction logic added for Zed. Files with `daemon.method` patterns in
+   bullet lists now import reliably.
+
+5. **Claude Code scores well overall** but loses some daemon methods because they're
    embedded in markdown documentation rather than structured data.
 
-5. **Registry enrichment helps all formats** by recovering auth requirements and
+6. **Registry enrichment helps all formats** by recovering auth requirements and
    method details when daemons are recognized in the FGP daemon registry.
 
-6. **Cursor/Aider formats remain documentation-centric** - excellent for preserving
-   instructions but lose all structural metadata.
+7. **Aider format remains documentation-centric** - excellent for preserving
+   instructions but lacks structural metadata.
 
-7. **MCP format is API-focused** - preserves tool schemas but doesn't map
+8. **MCP format is API-focused** - preserves tool schemas but doesn't map
    naturally to FGP's daemon model.
 
 ### Recommendations
