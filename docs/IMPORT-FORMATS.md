@@ -381,49 +381,56 @@ MCP tool names are parsed:
 
 ## Aider (CONVENTIONS.md)
 
-**Fidelity: ~35%** | **Pattern: `CONVENTIONS.md`, `*.CONVENTIONS.md`**
+**Fidelity: ~70%** | **Quality Grade: C (74%)** | **Pattern: `CONVENTIONS.md`, `*.CONVENTIONS.md`**
 
-Project conventions and style preferences.
+Project conventions and style preferences. Enhanced with daemon extraction from bullet lists.
 
 ### Structure
 
 ```markdown
 # Project Conventions
 
+This document outlines conventions for the productivity assistant project.
+
 ## Code Style
 
 - Use TypeScript strict mode
 - Prefer functional components
-- Use ESLint with recommended rules
 
-## Architecture
+## Available Tools
 
-- Follow hexagonal architecture
-- Keep business logic in services
-- Use dependency injection
+- gmail.inbox - List emails
+- gmail.send - Send email
+- calendar.list - List events
+- calendar.create - Create event
 
 ## Testing
 
 - Write unit tests for all services
-- Use Jest for testing
 ```
 
 ### What's Extracted
 
 | Field | Source | Confidence |
 |-------|--------|------------|
-| name | Filename or "conventions" | Low |
-| description | First paragraph | Low |
+| name | "for the X project" pattern or filename | Medium |
+| description | First paragraph | Medium |
 | version | Default `1.0.0` | Low |
-| daemons | Pattern matching | Low |
+| daemons | Bullet list `daemon.method` patterns | High |
+| triggers | Auto-generated from daemon names | Low |
 | instructions | Full content | High |
+
+### Name Inference
+
+The parser extracts meaningful names from description text:
+- "for the productivity assistant project" → "Productivity Assistant"
+- Falls back to filename if no pattern found
 
 ### Limitations
 
-- Conventions format is minimal
-- No tool/daemon definitions typically
-- Style preferences only
-- Best used as supplementary instructions
+- No version or author information
+- Triggers inferred from detected daemons
+- Works best with `daemon.method` bullet patterns
 
 ---
 
@@ -480,22 +487,23 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 | **Cursor** | 🟡 C (76%) | ~70% | ✅ Full | Project-level coding guidelines |
 | **Zed** | 🟡 C (75%) | ~70% | ✅ Full | Context rules with bullet lists |
 | **Codex** | 🟡 C (75%) | ~70% | ✅ Full | Tool-centric configurations |
+| **Aider** | 🟡 C (74%) | ~70% | ✅ Full | Project conventions with tool lists |
 | **MCP** | 🔴 F (28%) | ~25% | ❌ None | API/tool schema definitions |
 
 ### Field Recovery by Format
 
-| Field | Gemini | Windsurf | Claude Code | Zed | Codex | Cursor | MCP |
-|-------|--------|----------|-------------|-----|-------|--------|-----|
-| **name** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ✅ High |
-| **version** | ✅ High | ✅ High | ✅ High | ❌ Default | ❌ Default | ❌ Default | ❌ Default |
-| **description** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ✅ High |
-| **author** | ✅ High | ✅ High | ⚠️ Partial | ❌ None | ❌ None | ❌ None | ❌ None |
-| **instructions** | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ⚠️ Medium |
-| **daemons** | ✅ Full | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ✅ Full | ✅ Full | ❌ None |
-| **triggers** | ✅ High | ✅ High | ⚠️ Medium | ⚠️ Low | ❌ None | ❌ None | ❌ None |
-| **workflows** | ❌ N/A | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
-| **config** | ❌ N/A | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
-| **auth** | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched |
+| Field | Gemini | Windsurf | Claude Code | Zed | Codex | Cursor | Aider | MCP |
+|-------|--------|----------|-------------|-----|-------|--------|-------|-----|
+| **name** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ⚠️ Medium | ✅ High |
+| **version** | ✅ High | ✅ High | ✅ High | ❌ Default | ❌ Default | ❌ Default | ❌ Default | ❌ Default |
+| **description** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ⚠️ Medium | ✅ High |
+| **author** | ✅ High | ✅ High | ⚠️ Partial | ❌ None | ❌ None | ❌ None | ❌ None | ❌ None |
+| **instructions** | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ⚠️ Medium |
+| **daemons** | ✅ Full | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ❌ None |
+| **triggers** | ✅ High | ✅ High | ⚠️ Medium | ⚠️ Low | ❌ None | ❌ None | ⚠️ Low | ❌ None |
+| **workflows** | ❌ N/A | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
+| **config** | ❌ N/A | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
+| **auth** | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched |
 
 ### Key Insights
 
@@ -505,8 +513,8 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 2. **Windsurf remains excellent** (87%) because its `capabilities` structure
    maps directly to FGP's daemon/method model, plus it has explicit triggers and author.
 
-3. **Six formats now achieve full daemon recovery**: Gemini, Windsurf, Zed, Codex, and
-   Cursor all use explicit or inferred `daemon.method` patterns.
+3. **Seven formats now achieve full daemon recovery**: Gemini, Windsurf, Zed, Codex,
+   Cursor, and Aider all use explicit or inferred `daemon.method` patterns.
 
 4. **Zed format improved significantly** (F→C) through markdown bullet list extraction
    and role name parsing from intro lines like "specialized in X".
@@ -521,8 +529,8 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 7. **Registry enrichment helps all formats** by recovering auth requirements and
    method details when daemons are recognized in the FGP daemon registry.
 
-8. **Aider format remains documentation-centric** - excellent for preserving
-   instructions but lacks structural metadata.
+8. **Aider format now achieves full daemon recovery** (D→C, 74%) through shared
+   bullet extraction and project name inference from description patterns.
 
 9. **MCP format is API-focused** - preserves tool schemas but doesn't map
    naturally to FGP's daemon model.
