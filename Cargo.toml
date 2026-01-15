@@ -19,10 +19,10 @@ path = "src/main.rs"
 clap = { version = "4", features = ["derive", "env"] }
 
 # FGP daemon client
-fgp-daemon = { path = "../daemon" }
+fgp-daemon = { git = "https://github.com/fast-gateway-protocol/daemon.git", branch = "feat/t2-auto-start" }
 
 # FGP workflow engine
-fgp-workflow = { path = "../workflow" }
+fgp-workflow = { git = "https://github.com/fast-gateway-protocol/workflow.git" }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
