@@ -169,21 +169,30 @@ Tools in capabilities are parsed as `daemon.method`:
 
 ## Zed (*.rules)
 
-**Fidelity: ~40%** | **Pattern: `*.rules`**
+**Fidelity: ~70%** | **Quality Grade: C (75%)** | **Pattern: `*.rules`**
 
-Context-only format for Zed's AI assistant.
+Context-only format for Zed's AI assistant. Enhanced extraction from markdown content.
 
 ### Structure
 
 ```
-You are an AI assistant helping with this project.
+You are an AI assistant specialized in productivity management.
 
-Available tools:
-- Search files
-- Read documentation
-- Execute commands
+Your capabilities include email and calendar operations.
 
-Guidelines:
+## Available Tools
+
+### Email (Gmail)
+- gmail.inbox - List recent inbox emails
+- gmail.send - Send an email
+- gmail.search - Search emails by query
+
+### Calendar
+- calendar.list - List upcoming events
+- calendar.create - Create a new event
+
+## Guidelines
+
 - Always explain your reasoning
 - Use TypeScript
 ```
@@ -192,17 +201,30 @@ Guidelines:
 
 | Field | Source | Confidence |
 |-------|--------|------------|
-| name | Filename (without .rules) | Medium |
-| description | First sentence | Low |
+| name | Role description or filename | Medium |
+| description | First paragraph | Medium |
 | version | Default `1.0.0` | Low |
-| daemons | Pattern matching | Low |
+| daemons | `daemon.method` bullet patterns | Medium |
+| triggers | Daemon names + section headers | Low |
 | instructions | Full content | High |
+
+### Name Extraction
+
+The parser extracts meaningful names from intro lines:
+- "You are an AI assistant specialized in X" → "X"
+- Falls back to filename or parent directory
+
+### Daemon Extraction
+
+Daemons are extracted from markdown bullet patterns:
+- `- gmail.inbox - List emails` → daemon: `gmail`, method: `inbox`
+- `- calendar.create - Create event` → daemon: `calendar`, method: `create`
 
 ### Limitations
 
-- No structured metadata
-- Rules may not map to FGP concepts
-- Context-only format
+- No structured metadata (version, author)
+- Triggers inferred from content
+- Quality depends on markdown formatting
 
 ---
 
@@ -444,49 +466,53 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 |--------|---------------|------------------|-----------------|---------------|
 | **Windsurf** | 🔵 B (87%) | ~85% | ✅ Full | Cascades with capabilities |
 | **Claude Code** | 🔵 B (82%) | ~65% | ⚠️ Partial | Full skill definitions with frontmatter |
+| **Zed** | 🟡 C (75%) | ~70% | ✅ Full | Context rules with bullet lists |
 | **Codex** | 🟡 C (75%) | ~70% | ✅ Full | Tool-centric configurations |
 | **Cursor** | 🔴 F (36%) | ~30% | ❌ None | Project-level coding guidelines |
-| **Zed** | 🔴 F (28%) | ~25% | ❌ None | Context-only rules |
 | **MCP** | 🔴 F (28%) | ~25% | ❌ None | API/tool schema definitions |
 
 ### Field Recovery by Format
 
-| Field | Windsurf | Claude Code | Codex | Cursor | MCP |
-|-------|----------|-------------|-------|--------|-----|
-| **name** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High |
-| **version** | ✅ High | ✅ High | ❌ Default | ❌ Default | ❌ Default |
-| **description** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High |
-| **author** | ✅ High | ⚠️ Partial | ❌ None | ❌ None | ❌ None |
-| **instructions** | ✅ High | ✅ High | ✅ High | ✅ High | ⚠️ Medium |
-| **daemons** | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ❌ None | ❌ None |
-| **triggers** | ✅ High | ⚠️ Medium | ❌ None | ❌ None | ❌ None |
-| **workflows** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A |
-| **config** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A |
-| **auth** | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched |
+| Field | Windsurf | Claude Code | Zed | Codex | Cursor | MCP |
+|-------|----------|-------------|-----|-------|--------|-----|
+| **name** | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ✅ High |
+| **version** | ✅ High | ✅ High | ❌ Default | ❌ Default | ❌ Default | ❌ Default |
+| **description** | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ✅ High |
+| **author** | ✅ High | ⚠️ Partial | ❌ None | ❌ None | ❌ None | ❌ None |
+| **instructions** | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ⚠️ Medium |
+| **daemons** | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ✅ Full | ❌ None | ❌ None |
+| **triggers** | ✅ High | ⚠️ Medium | ⚠️ Low | ❌ None | ❌ None | ❌ None |
+| **workflows** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
+| **config** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
+| **auth** | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched |
 
 ### Key Insights
 
 1. **Windsurf is the highest-fidelity format** because its `capabilities` structure
    maps directly to FGP's daemon/method model, plus it has explicit triggers and author.
 
-2. **Codex and Windsurf both achieve full daemon recovery** because they use explicit
-   `daemon.method` tool names that parse cleanly.
+2. **Codex, Windsurf, and Zed all achieve full daemon recovery** because they use
+   explicit `daemon.method` patterns that parse cleanly.
 
-3. **Claude Code scores well overall** but loses some daemon methods because they're
+3. **Zed format improved significantly** (F→C) through markdown bullet list extraction
+   and role name parsing from intro lines like "specialized in X".
+
+4. **Claude Code scores well overall** but loses some daemon methods because they're
    embedded in markdown documentation rather than structured data.
 
-4. **Registry enrichment helps all formats** by recovering auth requirements and
+5. **Registry enrichment helps all formats** by recovering auth requirements and
    method details when daemons are recognized in the FGP daemon registry.
 
-5. **Cursor/Zed/Aider formats are documentation-centric** - excellent for preserving
+6. **Cursor/Aider formats remain documentation-centric** - excellent for preserving
    instructions but lose all structural metadata.
 
-6. **MCP format is API-focused** - preserves tool schemas but doesn't map
+7. **MCP format is API-focused** - preserves tool schemas but doesn't map
    naturally to FGP's daemon model.
 
 ### Recommendations
 
 - **Import from Windsurf** when available - highest overall fidelity (87%)
+- **Import from Zed** for context rules with `daemon.method` bullet lists
 - **Import from Claude Code** for skills with rich markdown documentation
 - **Import from Codex** when you need reliable daemon/method recovery
 - **Always use `--enrich`** to recover auth and method details from registry
