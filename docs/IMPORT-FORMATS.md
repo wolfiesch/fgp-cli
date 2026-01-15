@@ -4,9 +4,9 @@ Detailed documentation for each supported import format.
 
 ## Claude Code (SKILL.md)
 
-**Fidelity: ~65%** | **Quality Grade: B (82%)** | **Pattern: `SKILL.md`**
+**Fidelity: ~85%** | **Quality Grade: B (87%)** | **Pattern: `SKILL.md`**
 
-The highest fidelity format. Uses YAML frontmatter for structured metadata.
+High-fidelity format with YAML frontmatter. Supports structured tool and trigger definitions.
 
 ### Structure
 
@@ -15,15 +15,21 @@ The highest fidelity format. Uses YAML frontmatter for structured metadata.
 name: my-skill
 description: A helpful skill
 version: 1.0.0
+author: Developer Name
 tools:
   - daemon: gmail
     methods:
       - inbox
       - send
+  - daemon: calendar
+    methods:
+      - list
+      - create
 triggers:
   keywords:
     - email
     - gmail
+    - calendar
 ---
 
 # My Skill
@@ -42,16 +48,23 @@ More content...
 | name | Frontmatter `name` | High |
 | description | Frontmatter `description` | High |
 | version | Frontmatter `version` | High |
-| daemons | Frontmatter `tools` | High |
+| author | Frontmatter `author` | High |
+| daemons | Frontmatter `tools[].daemon` | High |
 | methods | Frontmatter `tools[].methods` | High |
-| triggers | Frontmatter `triggers` | High |
+| triggers | Frontmatter `triggers.keywords` | High |
 | instructions | Markdown body | High |
+
+### Tool Format Flexibility
+
+The parser supports both simple and structured tool formats:
+- Simple: `"gmail.inbox"` (string)
+- Structured: `{daemon: gmail, methods: [inbox, send]}`
 
 ### Limitations
 
 - Workflows not included in export format
 - Config options not recoverable
-- Some auth requirements may need enrichment
+- Auth requirements enriched from registry
 
 ---
 
@@ -482,8 +495,8 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 | Format | Quality Grade | Overall Fidelity | Daemon Recovery | Best Use Case |
 |--------|---------------|------------------|-----------------|---------------|
 | **Gemini** | 🔵 B (88%) | ~85% | ✅ Full | Extensions with trigger keywords |
+| **Claude Code** | 🔵 B (87%) | ~85% | ✅ Full | Full skill definitions with frontmatter |
 | **Windsurf** | 🔵 B (87%) | ~85% | ✅ Full | Cascades with capabilities |
-| **Claude Code** | 🔵 B (82%) | ~65% | ⚠️ Partial | Full skill definitions with frontmatter |
 | **Cursor** | 🟡 C (76%) | ~70% | ✅ Full | Project-level coding guidelines |
 | **Zed** | 🟡 C (75%) | ~70% | ✅ Full | Context rules with bullet lists |
 | **Codex** | 🟡 C (75%) | ~70% | ✅ Full | Tool-centric configurations |
@@ -497,10 +510,10 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 | **name** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ⚠️ Medium | ✅ High |
 | **version** | ✅ High | ✅ High | ✅ High | ❌ Default | ❌ Default | ❌ Default | ❌ Default | ❌ Default |
 | **description** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High | ⚠️ Medium | ⚠️ Medium | ✅ High |
-| **author** | ✅ High | ✅ High | ⚠️ Partial | ❌ None | ❌ None | ❌ None | ❌ None | ❌ None |
+| **author** | ✅ High | ✅ High | ✅ High | ❌ None | ❌ None | ❌ None | ❌ None | ❌ None |
 | **instructions** | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ✅ High | ⚠️ Medium |
-| **daemons** | ✅ Full | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ❌ None |
-| **triggers** | ✅ High | ✅ High | ⚠️ Medium | ⚠️ Low | ❌ None | ❌ None | ⚠️ Low | ❌ None |
+| **daemons** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ❌ None |
+| **triggers** | ✅ High | ✅ High | ✅ High | ⚠️ Low | ❌ None | ❌ None | ⚠️ Low | ❌ None |
 | **workflows** | ❌ N/A | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
 | **config** | ❌ N/A | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A | ❌ N/A |
 | **auth** | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched |
