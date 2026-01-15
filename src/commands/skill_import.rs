@@ -1835,6 +1835,49 @@ fn extract_first_h1(content: &str) -> Option<String> {
     None
 }
 
+/// Extract a role name from an intro line like "You are an AI assistant specialized in X"
+fn extract_role_name(line: &str) -> Option<String> {
+    let line_lower = line.to_lowercase();
+
+    // Pattern: "You are an AI assistant specialized in X"
+    if line_lower.contains("specialized in") || line_lower.contains("specializing in") {
+        if let Some(idx) = line_lower.find("specialized in").or_else(|| line_lower.find("specializing in")) {
+            let after = &line[idx..];
+            // Skip "specialized in " or "specializing in "
+            let start = if after.to_lowercase().starts_with("specialized in") { 15 } else { 16 };
+            if after.len() > start {
+                let role_part = after[start..].trim();
+                // Take until period or end
+                let role = role_part.split('.').next().unwrap_or(role_part).trim();
+                if !role.is_empty() && role.len() < 50 {
+                    // Convert to title case slug
+                    return Some(role.split_whitespace()
+                        .map(|w| {
+                            let mut c = w.chars();
+                            match c.next() {
+                                None => String::new(),
+                                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" "));
+                }
+            }
+        }
+    }
+
+    // Pattern: "X Assistant" or "X Manager" or "X Helper"
+    let assistant_re = Regex::new(r"(?i)(\w+(?:\s+\w+)?)\s+(?:assistant|manager|helper|agent|bot)").ok()?;
+    if let Some(cap) = assistant_re.captures(line) {
+        let name = cap[1].trim();
+        if !["an", "ai", "the", "a", "your"].contains(&name.to_lowercase().as_str()) {
+            return Some(format!("{} Assistant", name));
+        }
+    }
+
+    None
+}
+
 /// Extract content under a specific section header (## or ###)
 fn extract_section_content(content: &str, section_names: &[&str]) -> Option<String> {
     let lines: Vec<&str> = content.lines().collect();
@@ -2184,6 +2227,27 @@ fn extract_daemons_from_tools(tools: &[String], body: &str) -> Vec<ImportedDaemo
         }
     }
 
+    // Scan for daemon.method patterns in markdown bullet lists
+    // Matches: "- gmail.inbox - description" or "- `gmail.inbox` - description"
+    // Also matches: "**gmail.inbox** - description"
+    let bullet_re = Regex::new(r"[-*]\s+[`*]*(\w+)\.(\w+)[`*]*\s*[-–—:]").unwrap();
+    for cap in bullet_re.captures_iter(body) {
+        let daemon_name = cap[1].to_string();
+        let method_name = cap[2].to_string();
+
+        if !is_valid_daemon_name(&daemon_name) {
+            continue;
+        }
+
+        let methods = daemons.entry(daemon_name).or_default();
+        if !methods.iter().any(|m| m.value == method_name) {
+            methods.push(ImportedField::medium(
+                method_name,
+                FieldSource::Content,
+            ).with_note("Extracted from markdown bullet list"));
+        }
+    }
+
     // Also look for method tables
     let table_methods = extract_methods_from_tables(body);
     for (daemon_name, method_names) in table_methods {
@@ -2384,34 +2448,95 @@ fn parse_cursor(path: &Path, content: &str) -> Result<ImportedSkill> {
 fn parse_zed(path: &Path, content: &str) -> Result<ImportedSkill> {
     let now = chrono::Utc::now().to_rfc3339();
 
-    // Extract name from first H1 or directory name
+    // Extract name - try multiple strategies
     let name = if let Some(h1) = extract_first_h1(content) {
         ImportedField::medium(h1, FieldSource::Content)
             .with_note("Extracted from first H1 header")
     } else {
-        ImportedField::low(extract_name_from_path(path), FieldSource::Filename)
-            .with_note("Inferred from path")
+        // Try to extract a meaningful name from the first line if it describes a role
+        let first_line = content.lines().next().unwrap_or("").trim();
+        let role_name = extract_role_name(first_line);
+        if let Some(role) = role_name {
+            ImportedField::medium(role, FieldSource::Content)
+                .with_note("Extracted from role description")
+        } else {
+            // Use filename without extension
+            let filename = path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("skill");
+            // Convert "project" or generic names to something more meaningful
+            if filename == "project" || filename == "rules" {
+                // Try to get project name from parent directory
+                let parent_name = path.parent()
+                    .and_then(|p| p.file_name())
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("skill");
+                ImportedField::low(parent_name.to_string(), FieldSource::Filename)
+                    .with_note("Inferred from parent directory")
+            } else {
+                ImportedField::low(filename.to_string(), FieldSource::Filename)
+                    .with_note("Inferred from filename")
+            }
+        }
     };
 
-    // Extract description
+    // Extract description - first paragraph or first meaningful sentence
     let description = {
         let first_para = extract_first_paragraph(content);
         if !first_para.is_empty() {
             ImportedField::medium(first_para, FieldSource::Content)
                 .with_note("Extracted from first paragraph")
         } else {
-            ImportedField::low(
-                format!("{} skill", name.value),
-                FieldSource::Default,
-            )
+            // Try first line as description
+            let first_line = content.lines().next().unwrap_or("").trim();
+            if !first_line.is_empty() && first_line.len() < 200 {
+                ImportedField::medium(first_line.to_string(), FieldSource::Content)
+                    .with_note("Extracted from first line")
+            } else {
+                ImportedField::low(
+                    format!("{} skill", name.value),
+                    FieldSource::Default,
+                )
+            }
         }
     };
 
     // Extract daemons from content patterns
     let daemons = extract_daemons_from_tools(&[], content);
 
-    // Extract triggers
-    let triggers = extract_triggers(&[], content);
+    // Extract triggers - also look for keyword sections
+    let mut triggers = extract_triggers(&[], content);
+
+    // If no triggers found, try to extract from daemon names and section headers
+    if triggers.keywords.is_empty() {
+        let mut keywords = Vec::new();
+
+        // Add daemon names as keywords
+        for daemon in &daemons {
+            keywords.push(ImportedField::low(
+                daemon.name.value.clone(),
+                FieldSource::MethodExtraction,
+            ).with_note("Inferred from daemon name"));
+        }
+
+        // Look for section headers that might indicate capabilities
+        let header_re = Regex::new(r"##\s+(.+?)(?:\s*\(|$)").unwrap();
+        for cap in header_re.captures_iter(content) {
+            let header = cap[1].trim().to_lowercase();
+            // Skip generic headers
+            if !["guidelines", "code style", "project structure", "available tools",
+                 "best practices", "configuration", "example", "usage"].contains(&header.as_str()) {
+                if header.len() < 30 {
+                    keywords.push(ImportedField::low(
+                        header,
+                        FieldSource::Content,
+                    ).with_note("Extracted from section header"));
+                }
+            }
+        }
+
+        triggers.keywords = keywords;
+    }
 
     Ok(ImportedSkill {
         name,
