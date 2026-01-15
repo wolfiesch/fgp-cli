@@ -160,7 +160,13 @@ impl ExportTarget {
     }
 
     pub fn all_targets() -> Vec<Self> {
-        vec![Self::Mcp, Self::Claude, Self::Cursor, Self::ContinueDev, Self::Windsurf]
+        vec![
+            Self::Mcp,
+            Self::Claude,
+            Self::Cursor,
+            Self::ContinueDev,
+            Self::Windsurf,
+        ]
     }
 }
 
@@ -428,8 +434,7 @@ pub fn list() -> Result<()> {
 
     for (skill_key, entries) in &installed.skills {
         for entry in entries {
-            let status = if check_daemon_running(&skill_key.split('@').next().unwrap_or(skill_key))
-            {
+            let status = if check_daemon_running(skill_key.split('@').next().unwrap_or(skill_key)) {
                 "● running".green()
             } else {
                 "○ stopped".dimmed()
@@ -459,41 +464,36 @@ fn check_daemon_running(service: &str) -> bool {
 
 /// Search for skills in taps and marketplaces
 pub fn search(query: &str) -> Result<()> {
-    println!(
-        "{} {}",
-        "Searching for:".bold(),
-        query.cyan()
-    );
+    println!("{} {}", "Searching for:".bold(), query.cyan());
     println!();
 
     let mut found = false;
 
     // First search taps (new skill.yaml format)
-    match skill_tap::search_taps(query) {
-        Ok(results) => {
-            if !results.is_empty() {
-                println!("{}", "From taps:".bold().underline());
-                for (tap_name, _path, manifest) in &results {
-                    found = true;
-                    println!(
-                        "  {} {} (from {})",
-                        manifest.name.cyan().bold(),
-                        format!("v{}", manifest.version).dimmed(),
-                        tap_name.dimmed()
-                    );
-                    println!("    {}", manifest.description);
-                    if !manifest.keywords.is_empty() {
-                        println!("    Keywords: {}", manifest.keywords.join(", ").dimmed());
-                    }
-                    if !manifest.daemons.is_empty() {
-                        let daemon_names: Vec<_> = manifest.daemons.iter().map(|d| d.name.as_str()).collect();
-                        println!("    Daemons: {}", daemon_names.join(", ").dimmed());
-                    }
-                    println!();
+    // Ignore tap search errors, continue with marketplaces
+    if let Ok(results) = skill_tap::search_taps(query) {
+        if !results.is_empty() {
+            println!("{}", "From taps:".bold().underline());
+            for (tap_name, _path, manifest) in &results {
+                found = true;
+                println!(
+                    "  {} v{} (from {})",
+                    manifest.name.cyan().bold(),
+                    manifest.version.dimmed(),
+                    tap_name.dimmed()
+                );
+                println!("    {}", manifest.description);
+                if !manifest.keywords.is_empty() {
+                    println!("    Keywords: {}", manifest.keywords.join(", ").dimmed());
                 }
+                if !manifest.daemons.is_empty() {
+                    let daemon_names: Vec<_> =
+                        manifest.daemons.iter().map(|d| d.name.as_str()).collect();
+                    println!("    Daemons: {}", daemon_names.join(", ").dimmed());
+                }
+                println!();
             }
         }
-        Err(_) => {} // Ignore tap search errors, continue with marketplaces
     }
 
     // Also search legacy marketplaces
@@ -511,7 +511,10 @@ pub fn search(query: &str) -> Result<()> {
                         let query_lower = query.to_lowercase();
                         if skill.name.to_lowercase().contains(&query_lower)
                             || skill.description.to_lowercase().contains(&query_lower)
-                            || skill.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
+                            || skill
+                                .tags
+                                .iter()
+                                .any(|t| t.to_lowercase().contains(&query_lower))
                         {
                             if !marketplace_found {
                                 println!("{}", "From marketplaces (legacy):".bold().underline());
@@ -551,11 +554,7 @@ pub fn search(query: &str) -> Result<()> {
 
 /// Install a skill
 pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
-    println!(
-        "{} {}...",
-        "Installing skill:".bold(),
-        name.cyan()
-    );
+    println!("{} {}...", "Installing skill:".bold(), name.cyan());
 
     // First, try to find the skill in taps (new skill.yaml format)
     if from_marketplace.is_none() {
@@ -718,7 +717,9 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
         binary_path,
     };
 
-    installed.skills.insert(skill_key.clone(), vec![entry.clone()]);
+    installed
+        .skills
+        .insert(skill_key.clone(), vec![entry.clone()]);
     save_installed_skills(&installed)?;
 
     // Auto-register with ecosystems based on exports config
@@ -759,7 +760,12 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
         }
 
         // Windsurf
-        if exports.windsurf.as_ref().map(|w| w.enabled).unwrap_or(false) {
+        if exports
+            .windsurf
+            .as_ref()
+            .map(|w| w.enabled)
+            .unwrap_or(false)
+        {
             match export_to_windsurf(&skill_manifest) {
                 Ok(()) => {}
                 Err(e) => println!("    {} Windsurf: {}", "✗".red(), e),
@@ -775,15 +781,12 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
     );
     println!();
     println!("Start the daemon with:");
-    println!(
-        "  {}",
-        format!("fgp start {}", daemon_name)
-    );
+    println!("  fgp start {}", daemon_name);
     println!();
     println!("To register with additional ecosystems:");
     println!(
-        "  {}",
-        format!("fgp skill mcp register {} --target=claude,cursor", skill.name)
+        "  fgp skill mcp register {} --target=claude,cursor",
+        skill.name
     );
 
     Ok(())
@@ -869,12 +872,20 @@ fn install_from_tap(
 
         // Codex
         if instructions.codex.is_some() {
-            println!("    {} Codex: available (use 'fgp skill export codex {}')", "○".dimmed(), manifest.name);
+            println!(
+                "    {} Codex: available (use 'fgp skill export codex {}')",
+                "○".dimmed(),
+                manifest.name
+            );
         }
 
         // MCP
         if instructions.mcp.is_some() {
-            println!("    {} MCP: available (use 'fgp skill export mcp {}')", "○".dimmed(), manifest.name);
+            println!(
+                "    {} MCP: available (use 'fgp skill export mcp {}')",
+                "○".dimmed(),
+                manifest.name
+            );
         }
     }
 
@@ -956,9 +967,17 @@ fn export_tap_skill_to_cursor(
             if src_path.exists() {
                 // Read and copy to .cursorrules in current project
                 // or to a global location
-                println!("    {} Cursor: {} (copy to project)", "✓".green(), cursor_file);
+                println!(
+                    "    {} Cursor: {} (copy to project)",
+                    "✓".green(),
+                    cursor_file
+                );
             } else {
-                println!("    {} Cursor: file not found ({})", "⚠".yellow(), cursor_file);
+                println!(
+                    "    {} Cursor: file not found ({})",
+                    "⚠".yellow(),
+                    cursor_file
+                );
             }
         }
     }
@@ -995,7 +1014,7 @@ fn generate_skill_md_from_manifest(manifest: &super::skill_validate::SkillManife
             let optional = if daemon.optional { " (optional)" } else { "" };
             md.push_str(&format!("- `{}`{}\n", daemon.name, optional));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     // Triggers
@@ -1005,7 +1024,7 @@ fn generate_skill_md_from_manifest(manifest: &super::skill_validate::SkillManife
         for kw in &triggers.keywords {
             md.push_str(&format!("- \"{}\"\n", kw));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     // Workflows
@@ -1016,7 +1035,10 @@ fn generate_skill_md_from_manifest(manifest: &super::skill_validate::SkillManife
             if let Some(ref desc) = workflow.description {
                 md.push_str(&format!("{}\n", desc));
             }
-            md.push_str(&format!("```bash\nfgp workflow run {} --file {}\n```\n\n", name, workflow.file));
+            md.push_str(&format!(
+                "```bash\nfgp workflow run {} --file {}\n```\n\n",
+                name, workflow.file
+            ));
         }
     }
 
@@ -1082,17 +1104,13 @@ pub fn marketplace_update() -> Result<()> {
 
 /// Add a marketplace
 pub fn marketplace_add(url: &str) -> Result<()> {
-    println!(
-        "{} {}",
-        "Adding marketplace:".bold(),
-        url.cyan()
-    );
+    println!("{} {}", "Adding marketplace:".bold(), url.cyan());
 
     // Parse URL to get repo name
     let repo_name = url
         .trim_end_matches('/')
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or("marketplace")
         .trim_end_matches(".git");
 
@@ -1108,7 +1126,7 @@ pub fn marketplace_add(url: &str) -> Result<()> {
 
     // Clone the repository
     let install_location = marketplaces_dir().join(repo_name);
-    fs::create_dir_all(&install_location.parent().unwrap())?;
+    fs::create_dir_all(install_location.parent().unwrap())?;
 
     println!("  Cloning repository...");
     let status = Command::new("git")
@@ -1160,11 +1178,7 @@ pub fn marketplace_add(url: &str) -> Result<()> {
         println!();
         println!("Available skills:");
         for skill in &manifest.skills {
-            println!(
-                "  {} - {}",
-                skill.name.cyan(),
-                skill.description.dimmed()
-            );
+            println!("  {} - {}", skill.name.cyan(), skill.description.dimmed());
         }
     }
 
@@ -1193,11 +1207,7 @@ pub fn marketplace_list() -> Result<()> {
             "○ not cloned".dimmed()
         };
 
-        println!(
-            "  {} {}",
-            name.cyan().bold(),
-            status
-        );
+        println!("  {} {}", name.cyan().bold(), status);
         println!("    Source: {}", entry.source.repo.dimmed());
         if let Some(ref updated) = entry.last_updated {
             println!("    Last updated: {}", updated.dimmed());
@@ -1372,10 +1382,7 @@ pub fn remove(name: &str) -> Result<()> {
             );
         }
         None => {
-            println!(
-                "{}",
-                format!("Skill '{}' not found.", name).yellow()
-            );
+            println!("{}", format!("Skill '{}' not found.", name).yellow());
         }
     }
 
@@ -1465,10 +1472,7 @@ pub fn info(name: &str) -> Result<()> {
         }
     }
 
-    println!(
-        "{}",
-        format!("Skill '{}' not found.", name).yellow()
-    );
+    println!("{}", format!("Skill '{}' not found.", name).yellow());
 
     Ok(())
 }
@@ -1600,7 +1604,11 @@ pub fn mcp_register(name: &str) -> Result<()> {
             (k, entry)
         }
         None => {
-            bail!("Skill '{}' is not installed. Install it first with: fgp skill install {}", name, name);
+            bail!(
+                "Skill '{}' is not installed. Install it first with: fgp skill install {}",
+                name,
+                name
+            );
         }
     };
 
@@ -1611,7 +1619,10 @@ pub fn mcp_register(name: &str) -> Result<()> {
         .join("skill.json");
 
     if !skill_manifest_path.exists() {
-        bail!("Skill manifest not found at {}", skill_manifest_path.display());
+        bail!(
+            "Skill manifest not found at {}",
+            skill_manifest_path.display()
+        );
     }
 
     let skill_content = fs::read_to_string(&skill_manifest_path)?;
@@ -1649,7 +1660,10 @@ pub fn mcp_register(name: &str) -> Result<()> {
     println!("  Manifest: {}", manifest_path.display());
     println!();
     println!("The skill is now available via the FGP MCP server.");
-    println!("Tools will be named: {}", format!("fgp_{}_*", daemon_name).cyan());
+    println!(
+        "Tools will be named: {}",
+        format!("fgp_{}_*", daemon_name).cyan()
+    );
 
     Ok(())
 }
@@ -1721,7 +1735,11 @@ pub fn mcp_list() -> Result<()> {
                 status
             );
             println!("    {}", manifest.description.dimmed());
-            println!("    Methods: {} | Tools: fgp_{}_*", manifest.methods.len(), manifest.name);
+            println!(
+                "    Methods: {} | Tools: fgp_{}_*",
+                manifest.methods.len(),
+                manifest.name
+            );
             println!();
         }
     }
@@ -1757,7 +1775,11 @@ pub fn export_skill(name: &str, targets: &[ExportTarget], binary_path: Option<&s
             entries.first().context("No installation entry found")?
         }
         None => {
-            bail!("Skill '{}' is not installed. Install it first with: fgp skill install {}", name, name);
+            bail!(
+                "Skill '{}' is not installed. Install it first with: fgp skill install {}",
+                name,
+                name
+            );
         }
     };
 
@@ -1768,13 +1790,18 @@ pub fn export_skill(name: &str, targets: &[ExportTarget], binary_path: Option<&s
         .join("skill.json");
 
     if !skill_manifest_path.exists() {
-        bail!("Skill manifest not found at {}", skill_manifest_path.display());
+        bail!(
+            "Skill manifest not found at {}",
+            skill_manifest_path.display()
+        );
     }
 
     let skill_content = fs::read_to_string(&skill_manifest_path)?;
     let skill: SkillManifest = serde_json::from_str(&skill_content)?;
 
-    let bin_path = binary_path.map(|s| s.to_string()).or(entry.binary_path.clone());
+    let bin_path = binary_path
+        .map(|s| s.to_string())
+        .or(entry.binary_path.clone());
 
     // Expand 'All' target
     let actual_targets: Vec<ExportTarget> = if targets.contains(&ExportTarget::All) {
@@ -1836,15 +1863,26 @@ fn export_to_claude(skill: &SkillManifest) -> Result<()> {
                 return Ok(());
             }
             (
-                claude.skill_name.clone().unwrap_or_else(|| format!("{}-fgp", daemon_name)),
+                claude
+                    .skill_name
+                    .clone()
+                    .unwrap_or_else(|| format!("{}-fgp", daemon_name)),
                 claude.triggers.clone(),
                 claude.tools.clone(),
             )
         } else {
-            (format!("{}-fgp", daemon_name), vec![], vec!["Bash".to_string()])
+            (
+                format!("{}-fgp", daemon_name),
+                vec![],
+                vec!["Bash".to_string()],
+            )
         }
     } else {
-        (format!("{}-fgp", daemon_name), vec![], vec!["Bash".to_string()])
+        (
+            format!("{}-fgp", daemon_name),
+            vec![],
+            vec!["Bash".to_string()],
+        )
     };
 
     // Generate SKILL.md content
@@ -1866,7 +1904,12 @@ fn export_to_claude(skill: &SkillManifest) -> Result<()> {
 }
 
 /// Generate Claude Code SKILL.md content
-fn generate_claude_skill_md(skill: &SkillManifest, skill_name: &str, triggers: &[String], tools: &[String]) -> String {
+fn generate_claude_skill_md(
+    skill: &SkillManifest,
+    skill_name: &str,
+    triggers: &[String],
+    tools: &[String],
+) -> String {
     let daemon_name = skill
         .daemon
         .as_ref()
@@ -1903,7 +1946,10 @@ fn generate_claude_skill_md(skill: &SkillManifest, skill_name: &str, triggers: &
 
     // Prerequisites
     md.push_str("## Prerequisites\n\n");
-    md.push_str(&format!("1. **FGP daemon running**: `fgp start {}` or daemon auto-starts on first call\n", daemon_name));
+    md.push_str(&format!(
+        "1. **FGP daemon running**: `fgp start {}` or daemon auto-starts on first call\n",
+        daemon_name
+    ));
 
     if !skill.requirements.is_empty() {
         for (name, req) in &skill.requirements {
@@ -1912,7 +1958,7 @@ fn generate_claude_skill_md(skill: &SkillManifest, skill_name: &str, triggers: &
             }
         }
     }
-    md.push_str("\n");
+    md.push('\n');
 
     // Available Methods
     md.push_str("## Available Methods\n\n");
@@ -1944,7 +1990,7 @@ fn generate_claude_skill_md(skill: &SkillManifest, skill_name: &str, triggers: &
                     param_desc
                 ));
             }
-            md.push_str("\n");
+            md.push('\n');
         }
 
         // Example command
@@ -1953,7 +1999,9 @@ fn generate_claude_skill_md(skill: &SkillManifest, skill_name: &str, triggers: &
             md.push_str(&format!("fgp call {}\n", method.name));
         } else {
             // Build example params
-            let example_params: Vec<String> = method.params.iter()
+            let example_params: Vec<String> = method
+                .params
+                .iter()
                 .filter(|(_, p)| p.required)
                 .map(|(name, p)| {
                     let val = match p.param_type.as_str() {
@@ -1969,7 +2017,11 @@ fn generate_claude_skill_md(skill: &SkillManifest, skill_name: &str, triggers: &
             if example_params.is_empty() {
                 md.push_str(&format!("fgp call {}\n", method.name));
             } else {
-                md.push_str(&format!("fgp call {} -p '{{{}}}'\n", method.name, example_params.join(", ")));
+                md.push_str(&format!(
+                    "fgp call {} -p '{{{}}}'\n",
+                    method.name,
+                    example_params.join(", ")
+                ));
             }
         }
         md.push_str("```\n\n---\n\n");
@@ -1998,7 +2050,10 @@ fn export_to_cursor(skill: &SkillManifest) -> Result<()> {
                 println!("  {} Cursor: disabled in skill.json", "○".dimmed());
                 return Ok(());
             }
-            cursor.server_name.clone().unwrap_or_else(|| format!("fgp-{}", daemon_name))
+            cursor
+                .server_name
+                .clone()
+                .unwrap_or_else(|| format!("fgp-{}", daemon_name))
         } else {
             format!("fgp-{}", daemon_name)
         }
@@ -2038,7 +2093,12 @@ fn export_to_cursor(skill: &SkillManifest) -> Result<()> {
     let mcp_json = serde_json::to_string_pretty(&mcp_config)?;
     fs::write(&mcp_json_path, &mcp_json)?;
 
-    println!("  {} Cursor: {} in {}", "✓".green(), server_name, mcp_json_path.display());
+    println!(
+        "  {} Cursor: {} in {}",
+        "✓".green(),
+        server_name,
+        mcp_json_path.display()
+    );
     Ok(())
 }
 
@@ -2067,7 +2127,11 @@ fn export_to_continue(skill: &SkillManifest) -> Result<()> {
         .unwrap_or_else(|| skill.name.replace("-gateway", ""));
 
     // Continue.dev doesn't have a stable format yet - log as TODO
-    println!("  {} Continue: format TBD (daemon: {})", "⚠".yellow(), daemon_name);
+    println!(
+        "  {} Continue: format TBD (daemon: {})",
+        "⚠".yellow(),
+        daemon_name
+    );
     Ok(())
 }
 
@@ -2096,13 +2160,18 @@ fn export_to_windsurf(skill: &SkillManifest) -> Result<()> {
         .unwrap_or_else(|| skill.name.replace("-gateway", ""));
 
     // Generate similar markdown to Claude (Windsurf format is similar)
-    let skill_md = generate_claude_skill_md(skill, &format!("{}-fgp", daemon_name), &[], &["Bash".to_string()]);
+    let skill_md = generate_claude_skill_md(
+        skill,
+        &format!("{}-fgp", daemon_name),
+        &[],
+        &["Bash".to_string()],
+    );
 
     let windsurf_skills_dir = dirs::home_dir()
         .context("Could not find home directory")?
         .join(".windsurf")
         .join("skills")
-        .join(&format!("{}-fgp", daemon_name));
+        .join(format!("{}-fgp", daemon_name));
 
     fs::create_dir_all(&windsurf_skills_dir)?;
     let skill_md_path = windsurf_skills_dir.join("SKILL.md");
@@ -2183,7 +2252,10 @@ pub fn registration_status(name: &str) -> Result<()> {
     println!();
 
     // Check MCP
-    let mcp_manifest = fgp_home().join("services").join(&daemon_name).join("manifest.json");
+    let mcp_manifest = fgp_home()
+        .join("services")
+        .join(&daemon_name)
+        .join("manifest.json");
     if mcp_manifest.exists() {
         println!("  ├─ mcp:      {} {}", "✓".green(), mcp_manifest.display());
     } else {
@@ -2228,7 +2300,11 @@ pub fn registration_status(name: &str) -> Result<()> {
         .join(format!("{}-fgp", daemon_name))
         .join("SKILL.md");
     if windsurf_skill.exists() {
-        println!("  └─ windsurf: {} {}", "✓".green(), windsurf_skill.display());
+        println!(
+            "  └─ windsurf: {} {}",
+            "✓".green(),
+            windsurf_skill.display()
+        );
     } else {
         println!("  └─ windsurf: {} not registered", "○".dimmed());
     }

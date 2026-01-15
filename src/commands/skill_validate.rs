@@ -270,8 +270,8 @@ fn validate_manifest(manifest_path: &Path, skill_dir: &Path) -> Result<()> {
     let content = fs::read_to_string(manifest_path)
         .with_context(|| format!("Failed to read {}", manifest_path.display()))?;
 
-    let skill: SkillManifest = serde_yaml::from_str(&content)
-        .with_context(|| "Invalid YAML or schema mismatch")?;
+    let skill: SkillManifest =
+        serde_yaml::from_str(&content).with_context(|| "Invalid YAML or schema mismatch")?;
 
     // Validation checks
     validate_name(&skill.name)?;
@@ -352,7 +352,12 @@ fn validate_manifest(manifest_path: &Path, skill_dir: &Path) -> Result<()> {
     if let Some(ref exports) = skill.exports {
         println!();
         println!("{}:", "Export Targets".cyan().bold());
-        if exports.claude_code.as_ref().map(|e| e.enabled).unwrap_or(false) {
+        if exports
+            .claude_code
+            .as_ref()
+            .map(|e| e.enabled)
+            .unwrap_or(false)
+        {
             println!("  - Claude Code");
         }
         if exports.cursor.as_ref().map(|e| e.enabled).unwrap_or(false) {
@@ -382,10 +387,18 @@ fn validate_name(name: &str) -> Result<()> {
     if name.len() > 64 {
         bail!("Skill name must be at most 64 characters");
     }
-    if !name.chars().next().map(|c| c.is_ascii_lowercase()).unwrap_or(false) {
+    if !name
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_lowercase())
+        .unwrap_or(false)
+    {
         bail!("Skill name must start with a lowercase letter");
     }
-    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
         bail!("Skill name must contain only lowercase letters, numbers, and hyphens");
     }
     Ok(())
@@ -393,7 +406,12 @@ fn validate_name(name: &str) -> Result<()> {
 
 fn validate_version(version: &str) -> Result<()> {
     // Simple semver check
-    let parts: Vec<&str> = version.split('-').next().unwrap_or(version).split('.').collect();
+    let parts: Vec<&str> = version
+        .split('-')
+        .next()
+        .unwrap_or(version)
+        .split('.')
+        .collect();
     if parts.len() != 3 {
         bail!("Version must be semver format (e.g., 1.0.0)");
     }
@@ -425,7 +443,8 @@ fn validate_daemons(daemons: &[DaemonDependency]) -> Result<()> {
         }
         // Known daemons (could be expanded or loaded from registry)
         let known_daemons = [
-            "browser", "gmail", "calendar", "github", "imessage", "fly", "neon", "vercel", "slack", "travel",
+            "browser", "gmail", "calendar", "github", "imessage", "fly", "neon", "vercel", "slack",
+            "travel",
         ];
         if !known_daemons.contains(&daemon.name.as_str()) {
             eprintln!(
@@ -470,7 +489,10 @@ fn validate_workflows(
     for (name, workflow) in workflows {
         let workflow_path = skill_dir.join(&workflow.file);
         if !workflow_path.exists() {
-            warnings.push(format!("Workflow '{}' file not found: {}", name, workflow.file));
+            warnings.push(format!(
+                "Workflow '{}' file not found: {}",
+                name, workflow.file
+            ));
         }
     }
     Ok(())
@@ -508,11 +530,12 @@ fn validate_auth(auth: &AuthConfig) -> Result<()> {
 
     for secret in &auth.secrets {
         // Validate secret name format (UPPER_SNAKE_CASE)
-        if !secret.name.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_') {
-            bail!(
-                "Secret name '{}' must be UPPER_SNAKE_CASE",
-                secret.name
-            );
+        if !secret
+            .name
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+        {
+            bail!("Secret name '{}' must be UPPER_SNAKE_CASE", secret.name);
         }
     }
 

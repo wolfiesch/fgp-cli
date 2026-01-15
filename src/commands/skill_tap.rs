@@ -126,11 +126,7 @@ pub fn add(repo: &str) -> Result<()> {
     let (owner, repo_name, url) = parse_repo_input(repo)?;
     let tap_name = format!("{}-{}", owner, repo_name);
 
-    println!(
-        "{} {}",
-        "→".blue().bold(),
-        format!("Adding tap {}...", tap_name.cyan())
-    );
+    println!("{} Adding tap {}...", "→".blue().bold(), tap_name.cyan());
 
     // Check if already exists
     let mut config = load_taps_config()?;
@@ -206,11 +202,7 @@ pub fn remove(name: &str) -> Result<()> {
     let entry = config.taps.get(&tap_name).unwrap();
     let tap_path = PathBuf::from(&entry.path);
 
-    println!(
-        "{} {}",
-        "→".blue().bold(),
-        format!("Removing tap {}...", tap_name.cyan())
-    );
+    println!("{} Removing tap {}...", "→".blue().bold(), tap_name.cyan());
 
     // Remove the directory
     if tap_path.exists() {
@@ -335,7 +327,10 @@ pub fn show(name: &str) -> Result<()> {
     let tap_path = PathBuf::from(&entry.path);
 
     if !tap_path.exists() {
-        bail!("Tap directory not found. Re-add with 'fgp skill tap add {}'", entry.repo);
+        bail!(
+            "Tap directory not found. Re-add with 'fgp skill tap add {}'",
+            entry.repo
+        );
     }
 
     println!("{} {}", "Tap:".bold(), tap_name.cyan());
@@ -359,15 +354,23 @@ fn parse_repo_input(input: &str) -> Result<(String, String, String)> {
 
     // Handle full GitHub URL
     if input.starts_with("https://") || input.starts_with("git@") {
-        let cleaned = input
-            .trim_end_matches('/')
-            .trim_end_matches(".git");
+        let cleaned = input.trim_end_matches('/').trim_end_matches(".git");
 
         // Extract owner/repo from URL
         let parts: Vec<&str> = if cleaned.contains("github.com/") {
-            cleaned.split("github.com/").last().unwrap_or("").split('/').collect()
+            cleaned
+                .split("github.com/")
+                .last()
+                .unwrap_or("")
+                .split('/')
+                .collect()
         } else if cleaned.contains("github.com:") {
-            cleaned.split("github.com:").last().unwrap_or("").split('/').collect()
+            cleaned
+                .split("github.com:")
+                .last()
+                .unwrap_or("")
+                .split('/')
+                .collect()
         } else {
             bail!("Could not parse GitHub URL: {}", input);
         };
@@ -413,19 +416,22 @@ fn find_tap_name(config: &TapsConfig, partial: &str) -> Result<String> {
     }
 
     // Partial match
-    let matches: Vec<&String> = config
-        .taps
-        .keys()
-        .filter(|k| k.contains(partial))
-        .collect();
+    let matches: Vec<&String> = config.taps.keys().filter(|k| k.contains(partial)).collect();
 
     match matches.len() {
-        0 => bail!("Tap '{}' not found. Use 'fgp skill tap list' to see configured taps.", partial),
+        0 => bail!(
+            "Tap '{}' not found. Use 'fgp skill tap list' to see configured taps.",
+            partial
+        ),
         1 => Ok(matches[0].clone()),
         _ => bail!(
             "Ambiguous tap name '{}'. Matches: {}",
             partial,
-            matches.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+            matches
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
     }
 }
@@ -493,7 +499,11 @@ fn list_tap_skills(tap_path: &Path, limit: usize) -> Result<()> {
             // Try to read the manifest
             if let Ok(content) = fs::read_to_string(&manifest_path) {
                 if let Ok(manifest) = serde_yaml::from_str::<SkillManifest>(&content) {
-                    skills.push((manifest.name.clone(), manifest.version.clone(), manifest.description.clone()));
+                    skills.push((
+                        manifest.name.clone(),
+                        manifest.version.clone(),
+                        manifest.description.clone(),
+                    ));
                 }
             }
         }
@@ -507,14 +517,13 @@ fn list_tap_skills(tap_path: &Path, limit: usize) -> Result<()> {
     for (i, (name, version, description)) in skills.iter().enumerate() {
         if i >= limit {
             let remaining = skills.len() - limit;
-            println!("  {} more skill(s)...", format!("... and {}", remaining).dimmed());
+            println!(
+                "  {} more skill(s)...",
+                format!("... and {}", remaining).dimmed()
+            );
             break;
         }
-        println!(
-            "  {} {}",
-            name.cyan(),
-            format!("v{}", version).dimmed()
-        );
+        println!("  {} {}", name.cyan(), format!("v{}", version).dimmed());
         println!("    {}", description.dimmed());
     }
 
@@ -589,7 +598,10 @@ pub fn search_taps(query: &str) -> Result<Vec<(String, PathBuf, SkillManifest)>>
                     // Match against name, description, or keywords
                     let matches = manifest.name.to_lowercase().contains(&query_lower)
                         || manifest.description.to_lowercase().contains(&query_lower)
-                        || manifest.keywords.iter().any(|k| k.to_lowercase().contains(&query_lower));
+                        || manifest
+                            .keywords
+                            .iter()
+                            .any(|k| k.to_lowercase().contains(&query_lower));
 
                     if matches {
                         results.push((tap_name.clone(), path, manifest));

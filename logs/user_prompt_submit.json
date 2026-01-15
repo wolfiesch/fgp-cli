@@ -174,5 +174,21 @@
     "permission_mode": "bypassPermissions",
     "hook_event_name": "UserPromptSubmit",
     "prompt": "create a PR for these changes and set a reminder for me to check back in in 10 minutes"
+  },
+  {
+    "session_id": "6be261ac-4a50-4c29-b5e1-a1edb3ce813d",
+    "transcript_path": "/Users/wolfgangschoenberger/.claude/projects/-Users-wolfgangschoenberger-Projects-fgp/6be261ac-4a50-4c29-b5e1-a1edb3ce813d.jsonl",
+    "cwd": "/Users/wolfgangschoenberger/Projects/fgp/cli",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "create PR for t3-features branch"
+  },
+  {
+    "session_id": "6be261ac-4a50-4c29-b5e1-a1edb3ce813d",
+    "transcript_path": "/Users/wolfgangschoenberger/.claude/projects/-Users-wolfgangschoenberger-Projects-fgp/6be261ac-4a50-4c29-b5e1-a1edb3ce813d.jsonl",
+    "cwd": "/Users/wolfgangschoenberger/Projects/fgp/cli",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "Can you see if there are any review comments in that PR that need to be addressed? Address them within a single commit and then merge once that's done."
   }
 ]
