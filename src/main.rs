@@ -481,17 +481,17 @@ fn main() -> Result<()> {
         Commands::Skill { action } => match action {
             SkillAction::List => commands::skill::list(),
             SkillAction::Search { query } => commands::skill::search(&query),
-            SkillAction::Install { name, from } => {
-                commands::skill::install(&name, from.as_deref())
-            }
+            SkillAction::Install { name, from } => commands::skill::install(&name, from.as_deref()),
             SkillAction::Update => commands::skill::check_updates(),
             SkillAction::Upgrade { skill } => commands::skill::upgrade(skill.as_deref()),
             SkillAction::Remove { name } => commands::skill::remove(&name),
             SkillAction::Info { name } => commands::skill::info(&name),
             SkillAction::Validate { path } => commands::skill_validate::validate(&path),
-            SkillAction::Export { target, skill, output } => {
-                commands::skill_export::export(&target, &skill, output.as_deref())
-            }
+            SkillAction::Export {
+                target,
+                skill,
+                output,
+            } => commands::skill_export::export(&target, &skill, output.as_deref()),
             SkillAction::Tap { action } => match action {
                 TapAction::Add { repo } => commands::skill_tap::add(&repo),
                 TapAction::Remove { name } => commands::skill_tap::remove(&name),

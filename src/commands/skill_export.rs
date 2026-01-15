@@ -27,7 +27,11 @@ pub fn export(target: &str, skill: &str, output: Option<&str>) -> Result<()> {
     let skill_path = Path::new(skill);
     let (skill_dir, manifest_path) = if skill_path.is_dir() {
         (skill_path.to_path_buf(), skill_path.join("skill.yaml"))
-    } else if skill_path.extension().map(|e| e == "yaml" || e == "yml").unwrap_or(false) {
+    } else if skill_path
+        .extension()
+        .map(|e| e == "yaml" || e == "yml")
+        .unwrap_or(false)
+    {
         (
             skill_path.parent().unwrap_or(Path::new(".")).to_path_buf(),
             skill_path.to_path_buf(),
@@ -53,8 +57,8 @@ pub fn export(target: &str, skill: &str, output: Option<&str>) -> Result<()> {
     let content = fs::read_to_string(&manifest_path)
         .with_context(|| format!("Failed to read {}", manifest_path.display()))?;
 
-    let manifest: SkillManifest = serde_yaml::from_str(&content)
-        .with_context(|| "Invalid skill.yaml")?;
+    let manifest: SkillManifest =
+        serde_yaml::from_str(&content).with_context(|| "Invalid skill.yaml")?;
 
     // Determine output directory
     let output_dir = match output {
@@ -172,10 +176,7 @@ fn export_claude_code(manifest: &SkillManifest, skill_dir: &Path, output_dir: &P
     // Provide install hint
     println!();
     println!("{}:", "Install".cyan().bold());
-    println!(
-        "  cp -r {} ~/.claude/skills/",
-        skill_output_dir.display()
-    );
+    println!("  cp -r {} ~/.claude/skills/", skill_output_dir.display());
 
     Ok(())
 }
@@ -349,10 +350,7 @@ fn export_windsurf(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path
         rules.push_str("\n## Commands\n\n");
         for daemon in &manifest.daemons {
             for method in &daemon.methods {
-                rules.push_str(&format!(
-                    "- `fgp call {}.{}`\n",
-                    daemon.name, method
-                ));
+                rules.push_str(&format!("- `fgp call {}.{}`\n", daemon.name, method));
             }
         }
     }
@@ -408,7 +406,9 @@ fn export_zed(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -> 
         // Add FGP daemon usage
         if !manifest.daemons.is_empty() {
             rules.push_str("## FGP Daemons\n\n");
-            rules.push_str("Use these Fast Gateway Protocol commands for high-performance execution:\n\n");
+            rules.push_str(
+                "Use these Fast Gateway Protocol commands for high-performance execution:\n\n",
+            );
             rules.push_str("```bash\n");
             for daemon in &manifest.daemons {
                 for method in &daemon.methods {
@@ -475,7 +475,10 @@ fn export_gemini(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) 
         "contextFileName": "GEMINI.md"
     });
     let manifest_path = ext_dir.join("gemini-extension.json");
-    fs::write(&manifest_path, serde_json::to_string_pretty(&extension_json)?)?;
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&extension_json)?,
+    )?;
 
     // Generate GEMINI.md context file
     let mut gemini_md = String::new();
@@ -483,10 +486,7 @@ fn export_gemini(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) 
     gemini_md.push_str(&format!("{}\n\n", manifest.description));
 
     // Read gemini-specific or core instructions
-    let gemini_instructions = manifest
-        .instructions
-        .as_ref()
-        .and_then(|i| i.core.as_ref());
+    let gemini_instructions = manifest.instructions.as_ref().and_then(|i| i.core.as_ref());
 
     if let Some(instruction_path) = gemini_instructions {
         let full_path = skill_dir.join(instruction_path);
@@ -515,10 +515,7 @@ fn export_gemini(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) 
             gemini_md.push_str("```bash\n");
             for daemon in &manifest.daemons {
                 for method in &daemon.methods {
-                    gemini_md.push_str(&format!(
-                        "fgp call {}.{} -p '{{}}'\n",
-                        daemon.name, method
-                    ));
+                    gemini_md.push_str(&format!("fgp call {}.{} -p '{{}}'\n", daemon.name, method));
                 }
             }
             gemini_md.push_str("```\n");
@@ -538,7 +535,10 @@ fn export_gemini(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) 
     println!();
     println!("{}:", "Usage".cyan().bold());
     println!("  1. Copy directory to ~/.gemini/extensions/");
-    println!("  2. Or run: gemini extensions install {}", ext_dir.display());
+    println!(
+        "  2. Or run: gemini extensions install {}",
+        ext_dir.display()
+    );
 
     Ok(())
 }
@@ -551,10 +551,7 @@ fn export_aider(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -
     conventions.push_str(&format!("{}\n\n", manifest.description));
 
     // Read aider-specific or core instructions
-    let aider_instructions = manifest
-        .instructions
-        .as_ref()
-        .and_then(|i| i.core.as_ref());
+    let aider_instructions = manifest.instructions.as_ref().and_then(|i| i.core.as_ref());
 
     if let Some(instruction_path) = aider_instructions {
         let full_path = skill_dir.join(instruction_path);
@@ -577,7 +574,8 @@ fn export_aider(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -
         // Add FGP daemon usage
         if !manifest.daemons.is_empty() {
             conventions.push_str("## FGP Integration\n\n");
-            conventions.push_str("This project uses Fast Gateway Protocol daemons for performance.\n\n");
+            conventions
+                .push_str("This project uses Fast Gateway Protocol daemons for performance.\n\n");
             conventions.push_str("### Available Commands\n\n");
             for daemon in &manifest.daemons {
                 let optional = if daemon.optional { " (optional)" } else { "" };

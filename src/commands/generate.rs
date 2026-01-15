@@ -74,14 +74,13 @@ pub fn new_daemon(
     let script_path = generator_script_path()?;
 
     println!();
-    println!(
-        "{} Generating FGP daemon: {}",
-        "→".blue(),
-        service.bold()
-    );
+    println!("{} Generating FGP daemon: {}", "→".blue(), service.bold());
 
     // Build command arguments
-    let mut args = vec![script_path.to_string_lossy().to_string(), service.to_string()];
+    let mut args = vec![
+        script_path.to_string_lossy().to_string(),
+        service.to_string(),
+    ];
 
     if preset {
         args.push("--preset".to_string());
