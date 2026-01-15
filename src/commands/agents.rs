@@ -8,6 +8,8 @@ use std::path::Path;
 const AGENT_PATHS: &[(&str, &str, &str)] = &[
     ("Claude Code", "~/.claude/skills", "SKILL.md files"),
     ("Codex", "~/.codex/skills", "SKILL.md files"),
+    ("Gemini CLI", "~/.gemini/extensions", "Extension directories"),
+    ("Antigravity", "~/.gemini/antigravity", "MCP config"),
     ("Cursor", "~/.cursor", ".mdc rules"),
     ("Windsurf", "~/.windsurf", "Workflow files"),
     (
