@@ -56,6 +56,43 @@ fgp stop gmail
 | `fgp methods <service>` | List available methods for a service |
 | `fgp health <service>` | Check health of a specific service |
 | `fgp install <path>` | Install a package from local path |
+| `fgp skill import <path>` | Import skills from other agent formats |
+| `fgp skill export <format>` | Export skill to agent-specific format |
+
+## Skill Import
+
+Import existing skills from Claude Code, Cursor, Windsurf, Gemini, and other AI agents into FGP's canonical `skill.yaml` format.
+
+```bash
+# Import from Claude Code SKILL.md
+fgp skill import ./SKILL.md --output ./my-skill/
+
+# Import from Cursor rules
+fgp skill import ./.cursorrules --output ./my-skill/
+
+# Import from Gemini extension
+fgp skill import ./gemini-extension.json --output ./my-skill/
+
+# Preview import without writing files (dry run)
+fgp skill import ./SKILL.md --dry-run
+
+# Import with daemon registry enrichment (recommended)
+fgp skill import ./SKILL.md --enrich --output ./my-skill/
+```
+
+### Supported Formats
+
+| Format | Pattern | Quality |
+|--------|---------|---------|
+| Claude Code | `SKILL.md` | 🔵 B (87%) |
+| Gemini | `gemini-extension.json` | 🔵 B (88%) |
+| Windsurf | `*.windsurf.md` | 🔵 B (87%) |
+| Cursor | `.cursorrules` | 🟡 C (76%) |
+| Zed | `*.rules` | 🟡 C (75%) |
+| Codex | `*.codex.json` | 🟡 C (75%) |
+| Aider | `CONVENTIONS.md` | 🟡 C (74%) |
+
+See [docs/SKILL-IMPORT.md](docs/SKILL-IMPORT.md) for full documentation and [docs/IMPORT-FORMATS.md](docs/IMPORT-FORMATS.md) for format-specific details.
 
 ## Agent Detection
 
