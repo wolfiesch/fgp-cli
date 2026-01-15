@@ -177,7 +177,7 @@ pub fn run(name: &str, description: Option<&str>, language: &str, no_git: bool) 
     println!("  2. Edit manifest.json to add your methods");
     println!("  3. Implement methods in src/main.rs");
     println!("  4. {}", "cargo build --release".cyan());
-    println!("  5. {}", format!("fgp install .").cyan());
+    println!("  5. {}", "fgp install .".cyan());
     println!();
 
     Ok(())
