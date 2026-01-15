@@ -1,5 +1,9 @@
 # fgp
 
+[![CI](https://github.com/fast-gateway-protocol/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/fast-gateway-protocol/cli/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Crates.io](https://img.shields.io/crates/v/fgp.svg)](https://crates.io/crates/fgp)
+
 Command-line interface for [Fast Gateway Protocol (FGP)](https://github.com/fast-gateway-protocol) daemons.
 
 FGP is the universal package manager for AI agents. One command installs capabilities across Claude Code, Cursor, Windsurf, and other AI coding assistants.
