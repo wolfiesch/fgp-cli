@@ -17,7 +17,7 @@ path = "src/main.rs"
 clap = { version = "4", features = ["derive", "env"] }
 
 # FGP daemon client
-fgp-daemon = { path = "../fgp-daemon" }
+fgp-daemon = { path = "../daemon" }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
