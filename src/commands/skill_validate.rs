@@ -104,6 +104,8 @@ pub struct Instructions {
     pub windsurf: Option<String>,
     #[serde(default)]
     pub mcp: Option<String>,
+    #[serde(default)]
+    pub zed: Option<String>,
 }
 
 /// Trigger conditions.

@@ -217,9 +217,9 @@ enum SkillAction {
         path: String,
     },
 
-    /// Export skill for a specific agent (claude-code, cursor, codex, mcp, windsurf)
+    /// Export skill for a specific agent (claude-code, cursor, codex, mcp, windsurf, zed)
     Export {
-        /// Target agent: claude-code, cursor, codex, mcp, windsurf
+        /// Target agent: claude-code, cursor, codex, mcp, windsurf, zed
         target: String,
 
         /// Skill name or path to skill directory

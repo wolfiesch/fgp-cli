@@ -6,6 +6,7 @@
 //! - codex: Generates tool spec and prompts
 //! - mcp: Generates MCP tool schema
 //! - windsurf: Generates cascade rules
+//! - zed: Generates .rules file for Zed's AI assistant
 
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
@@ -68,9 +69,10 @@ pub fn export(target: &str, skill: &str, output: Option<&str>) -> Result<()> {
         "codex" => export_codex(&manifest, &skill_dir, &output_dir),
         "mcp" => export_mcp(&manifest, &skill_dir, &output_dir),
         "windsurf" => export_windsurf(&manifest, &skill_dir, &output_dir),
+        "zed" => export_zed(&manifest, &skill_dir, &output_dir),
         _ => bail!(
             "Unknown export target: {}\n\
-             Valid targets: claude-code, cursor, codex, mcp, windsurf",
+             Valid targets: claude-code, cursor, codex, mcp, windsurf, zed",
             target
         ),
     }
@@ -362,6 +364,98 @@ fn export_windsurf(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path
         "✓".green().bold(),
         rules_path.display()
     );
+
+    Ok(())
+}
+
+/// Export for Zed (generates .rules file for Zed's AI assistant).
+fn export_zed(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -> Result<()> {
+    let mut rules = String::new();
+
+    // Zed rules format - plain text instructions for the AI assistant
+    rules.push_str(&format!("# {}\n\n", manifest.name));
+    rules.push_str(&format!("{}\n\n", manifest.description));
+
+    // Read zed-specific instructions if they exist
+    let zed_instructions = manifest
+        .instructions
+        .as_ref()
+        .and_then(|i| i.zed.as_ref())
+        .or_else(|| manifest.instructions.as_ref().and_then(|i| i.core.as_ref()));
+
+    if let Some(instruction_path) = zed_instructions {
+        let full_path = skill_dir.join(instruction_path);
+        if full_path.exists() {
+            let instructions = fs::read_to_string(&full_path)?;
+            rules.push_str(&instructions);
+        }
+    } else {
+        // Generate default rules
+        rules.push_str("## When to Activate\n\n");
+        if let Some(ref triggers) = manifest.triggers {
+            rules.push_str("Activate this skill when the user:\n");
+            for keyword in &triggers.keywords {
+                rules.push_str(&format!("- Mentions \"{}\"\n", keyword));
+            }
+            for pattern in &triggers.patterns {
+                rules.push_str(&format!("- Asks to \"{}\"\n", pattern));
+            }
+            rules.push_str("\n");
+        }
+
+        // Add FGP daemon usage
+        if !manifest.daemons.is_empty() {
+            rules.push_str("## FGP Daemons\n\n");
+            rules.push_str("Use these Fast Gateway Protocol commands for high-performance execution:\n\n");
+            rules.push_str("```bash\n");
+            for daemon in &manifest.daemons {
+                for method in &daemon.methods {
+                    rules.push_str(&format!(
+                        "fgp call {}.{} -p '{{\"param\": \"value\"}}'\n",
+                        daemon.name, method
+                    ));
+                }
+            }
+            rules.push_str("```\n\n");
+
+            rules.push_str("### Available Methods\n\n");
+            for daemon in &manifest.daemons {
+                let optional = if daemon.optional { " (optional)" } else { "" };
+                rules.push_str(&format!("**{}**{}:\n", daemon.name, optional));
+                for method in &daemon.methods {
+                    rules.push_str(&format!("- `{}.{}`\n", daemon.name, method));
+                }
+                rules.push_str("\n");
+            }
+        }
+
+        // Add workflow info
+        if !manifest.workflows.is_empty() {
+            rules.push_str("## Workflows\n\n");
+            for (name, workflow) in &manifest.workflows {
+                let default = if workflow.default { " (default)" } else { "" };
+                let desc = workflow.description.as_deref().unwrap_or("");
+                rules.push_str(&format!("- **{}**{}: {}\n", name, default, desc));
+            }
+            rules.push_str("\n");
+        }
+    }
+
+    // Write .rules file (Zed's native format)
+    let rules_path = output_dir.join(format!("{}.rules", manifest.name));
+    fs::write(&rules_path, &rules)?;
+
+    println!(
+        "{} Exported Zed rules to: {}",
+        "✓".green().bold(),
+        rules_path.display()
+    );
+
+    // Provide usage hints
+    println!();
+    println!("{}:", "Usage".cyan().bold());
+    println!("  1. Copy to project root as .rules");
+    println!("  2. Or add to Zed's Rules Library (Cmd+Alt+L)");
 
     Ok(())
 }
