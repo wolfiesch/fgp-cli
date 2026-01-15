@@ -434,8 +434,7 @@ pub fn list() -> Result<()> {
 
     for (skill_key, entries) in &installed.skills {
         for entry in entries {
-            let status = if check_daemon_running(&skill_key.split('@').next().unwrap_or(skill_key))
-            {
+            let status = if check_daemon_running(skill_key.split('@').next().unwrap_or(skill_key)) {
                 "● running".green()
             } else {
                 "○ stopped".dimmed()
@@ -471,32 +470,30 @@ pub fn search(query: &str) -> Result<()> {
     let mut found = false;
 
     // First search taps (new skill.yaml format)
-    match skill_tap::search_taps(query) {
-        Ok(results) => {
-            if !results.is_empty() {
-                println!("{}", "From taps:".bold().underline());
-                for (tap_name, _path, manifest) in &results {
-                    found = true;
-                    println!(
-                        "  {} {} (from {})",
-                        manifest.name.cyan().bold(),
-                        format!("v{}", manifest.version).dimmed(),
-                        tap_name.dimmed()
-                    );
-                    println!("    {}", manifest.description);
-                    if !manifest.keywords.is_empty() {
-                        println!("    Keywords: {}", manifest.keywords.join(", ").dimmed());
-                    }
-                    if !manifest.daemons.is_empty() {
-                        let daemon_names: Vec<_> =
-                            manifest.daemons.iter().map(|d| d.name.as_str()).collect();
-                        println!("    Daemons: {}", daemon_names.join(", ").dimmed());
-                    }
-                    println!();
+    // Ignore tap search errors, continue with marketplaces
+    if let Ok(results) = skill_tap::search_taps(query) {
+        if !results.is_empty() {
+            println!("{}", "From taps:".bold().underline());
+            for (tap_name, _path, manifest) in &results {
+                found = true;
+                println!(
+                    "  {} v{} (from {})",
+                    manifest.name.cyan().bold(),
+                    manifest.version.dimmed(),
+                    tap_name.dimmed()
+                );
+                println!("    {}", manifest.description);
+                if !manifest.keywords.is_empty() {
+                    println!("    Keywords: {}", manifest.keywords.join(", ").dimmed());
                 }
+                if !manifest.daemons.is_empty() {
+                    let daemon_names: Vec<_> =
+                        manifest.daemons.iter().map(|d| d.name.as_str()).collect();
+                    println!("    Daemons: {}", daemon_names.join(", ").dimmed());
+                }
+                println!();
             }
         }
-        Err(_) => {} // Ignore tap search errors, continue with marketplaces
     }
 
     // Also search legacy marketplaces
@@ -784,15 +781,12 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
     );
     println!();
     println!("Start the daemon with:");
-    println!("  {}", format!("fgp start {}", daemon_name));
+    println!("  fgp start {}", daemon_name);
     println!();
     println!("To register with additional ecosystems:");
     println!(
-        "  {}",
-        format!(
-            "fgp skill mcp register {} --target=claude,cursor",
-            skill.name
-        )
+        "  fgp skill mcp register {} --target=claude,cursor",
+        skill.name
     );
 
     Ok(())
@@ -1020,7 +1014,7 @@ fn generate_skill_md_from_manifest(manifest: &super::skill_validate::SkillManife
             let optional = if daemon.optional { " (optional)" } else { "" };
             md.push_str(&format!("- `{}`{}\n", daemon.name, optional));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     // Triggers
@@ -1030,7 +1024,7 @@ fn generate_skill_md_from_manifest(manifest: &super::skill_validate::SkillManife
         for kw in &triggers.keywords {
             md.push_str(&format!("- \"{}\"\n", kw));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     // Workflows
@@ -1116,7 +1110,7 @@ pub fn marketplace_add(url: &str) -> Result<()> {
     let repo_name = url
         .trim_end_matches('/')
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or("marketplace")
         .trim_end_matches(".git");
 
@@ -1132,7 +1126,7 @@ pub fn marketplace_add(url: &str) -> Result<()> {
 
     // Clone the repository
     let install_location = marketplaces_dir().join(repo_name);
-    fs::create_dir_all(&install_location.parent().unwrap())?;
+    fs::create_dir_all(install_location.parent().unwrap())?;
 
     println!("  Cloning repository...");
     let status = Command::new("git")
@@ -1964,7 +1958,7 @@ fn generate_claude_skill_md(
             }
         }
     }
-    md.push_str("\n");
+    md.push('\n');
 
     // Available Methods
     md.push_str("## Available Methods\n\n");
@@ -1996,7 +1990,7 @@ fn generate_claude_skill_md(
                     param_desc
                 ));
             }
-            md.push_str("\n");
+            md.push('\n');
         }
 
         // Example command
@@ -2177,7 +2171,7 @@ fn export_to_windsurf(skill: &SkillManifest) -> Result<()> {
         .context("Could not find home directory")?
         .join(".windsurf")
         .join("skills")
-        .join(&format!("{}-fgp", daemon_name));
+        .join(format!("{}-fgp", daemon_name));
 
     fs::create_dir_all(&windsurf_skills_dir)?;
     let skill_md_path = windsurf_skills_dir.join("SKILL.md");

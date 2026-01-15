@@ -126,11 +126,7 @@ pub fn add(repo: &str) -> Result<()> {
     let (owner, repo_name, url) = parse_repo_input(repo)?;
     let tap_name = format!("{}-{}", owner, repo_name);
 
-    println!(
-        "{} {}",
-        "→".blue().bold(),
-        format!("Adding tap {}...", tap_name.cyan())
-    );
+    println!("{} Adding tap {}...", "→".blue().bold(), tap_name.cyan());
 
     // Check if already exists
     let mut config = load_taps_config()?;
@@ -206,11 +202,7 @@ pub fn remove(name: &str) -> Result<()> {
     let entry = config.taps.get(&tap_name).unwrap();
     let tap_path = PathBuf::from(&entry.path);
 
-    println!(
-        "{} {}",
-        "→".blue().bold(),
-        format!("Removing tap {}...", tap_name.cyan())
-    );
+    println!("{} Removing tap {}...", "→".blue().bold(), tap_name.cyan());
 
     // Remove the directory
     if tap_path.exists() {

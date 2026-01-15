@@ -137,7 +137,7 @@ fn export_claude_code(manifest: &SkillManifest, skill_dir: &Path, output_dir: &P
                 let optional = if daemon.optional { " (optional)" } else { "" };
                 skill_md.push_str(&format!("- **{}**{}\n", daemon.name, optional));
             }
-            skill_md.push_str("\n");
+            skill_md.push('\n');
         }
 
         // Add usage examples
@@ -147,7 +147,7 @@ fn export_claude_code(manifest: &SkillManifest, skill_dir: &Path, output_dir: &P
                 for pattern in &triggers.patterns {
                     skill_md.push_str(&format!("- `{}`\n", pattern));
                 }
-                skill_md.push_str("\n");
+                skill_md.push('\n');
             }
         }
 
@@ -159,7 +159,7 @@ fn export_claude_code(manifest: &SkillManifest, skill_dir: &Path, output_dir: &P
                 let desc = workflow.description.as_deref().unwrap_or("");
                 skill_md.push_str(&format!("- **{}**{}: {}\n", name, default, desc));
             }
-            skill_md.push_str("\n");
+            skill_md.push('\n');
         }
     }
 
@@ -195,7 +195,7 @@ fn export_cursor(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) 
         for keyword in &triggers.keywords {
             rules.push_str(&format!("- \"{}\"\n", keyword));
         }
-        rules.push_str("\n");
+        rules.push('\n');
     }
 
     // Read cursor-specific instructions
@@ -400,7 +400,7 @@ fn export_zed(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -> 
             for pattern in &triggers.patterns {
                 rules.push_str(&format!("- Asks to \"{}\"\n", pattern));
             }
-            rules.push_str("\n");
+            rules.push('\n');
         }
 
         // Add FGP daemon usage
@@ -427,7 +427,7 @@ fn export_zed(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -> 
                 for method in &daemon.methods {
                     rules.push_str(&format!("- `{}.{}`\n", daemon.name, method));
                 }
-                rules.push_str("\n");
+                rules.push('\n');
             }
         }
 
@@ -439,7 +439,7 @@ fn export_zed(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -> 
                 let desc = workflow.description.as_deref().unwrap_or("");
                 rules.push_str(&format!("- **{}**{}: {}\n", name, default, desc));
             }
-            rules.push_str("\n");
+            rules.push('\n');
         }
     }
 
@@ -505,7 +505,7 @@ fn export_gemini(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) 
             for pattern in &triggers.patterns {
                 gemini_md.push_str(&format!("- Asks to \"{}\"\n", pattern));
             }
-            gemini_md.push_str("\n");
+            gemini_md.push('\n');
         }
 
         // Add FGP daemon usage
@@ -568,7 +568,7 @@ fn export_aider(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -
             for keyword in &triggers.keywords {
                 conventions.push_str(&format!("- Use when dealing with \"{}\"\n", keyword));
             }
-            conventions.push_str("\n");
+            conventions.push('\n');
         }
 
         // Add FGP daemon usage
@@ -586,7 +586,7 @@ fn export_aider(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -
                         daemon.name, method
                     ));
                 }
-                conventions.push_str("\n");
+                conventions.push('\n');
             }
         }
 
@@ -597,7 +597,7 @@ fn export_aider(manifest: &SkillManifest, skill_dir: &Path, output_dir: &Path) -
                 let desc = workflow.description.as_deref().unwrap_or("");
                 conventions.push_str(&format!("- **{}**: {}\n", name, desc));
             }
-            conventions.push_str("\n");
+            conventions.push('\n');
         }
     }
 
