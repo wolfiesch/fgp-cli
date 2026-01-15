@@ -25,6 +25,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use super::skill_tap;
+
 /// Skill manifest format (skill.json)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SkillManifest {
@@ -455,18 +457,8 @@ fn check_daemon_running(service: &str) -> bool {
     socket_path.exists()
 }
 
-/// Search for skills in marketplaces
+/// Search for skills in taps and marketplaces
 pub fn search(query: &str) -> Result<()> {
-    let marketplaces = load_known_marketplaces()?;
-
-    if marketplaces.marketplaces.is_empty() {
-        println!("{}", "No marketplaces configured.".yellow());
-        println!();
-        println!("Add a marketplace first:");
-        println!("  fgp skill marketplace add https://github.com/fast-gateway-protocol/fgp");
-        return Ok(());
-    }
-
     println!(
         "{} {}",
         "Searching for:".bold(),
@@ -476,31 +468,68 @@ pub fn search(query: &str) -> Result<()> {
 
     let mut found = false;
 
-    for (name, entry) in &marketplaces.marketplaces {
-        if let Some(ref location) = entry.install_location {
-            let manifest_path = Path::new(location).join(".fgp").join("marketplace.json");
-            if manifest_path.exists() {
-                let content = fs::read_to_string(&manifest_path)?;
-                let manifest: MarketplaceManifest = serde_json::from_str(&content)?;
+    // First search taps (new skill.yaml format)
+    match skill_tap::search_taps(query) {
+        Ok(results) => {
+            if !results.is_empty() {
+                println!("{}", "From taps:".bold().underline());
+                for (tap_name, _path, manifest) in &results {
+                    found = true;
+                    println!(
+                        "  {} {} (from {})",
+                        manifest.name.cyan().bold(),
+                        format!("v{}", manifest.version).dimmed(),
+                        tap_name.dimmed()
+                    );
+                    println!("    {}", manifest.description);
+                    if !manifest.keywords.is_empty() {
+                        println!("    Keywords: {}", manifest.keywords.join(", ").dimmed());
+                    }
+                    if !manifest.daemons.is_empty() {
+                        let daemon_names: Vec<_> = manifest.daemons.iter().map(|d| d.name.as_str()).collect();
+                        println!("    Daemons: {}", daemon_names.join(", ").dimmed());
+                    }
+                    println!();
+                }
+            }
+        }
+        Err(_) => {} // Ignore tap search errors, continue with marketplaces
+    }
 
-                for skill in &manifest.skills {
-                    let query_lower = query.to_lowercase();
-                    if skill.name.to_lowercase().contains(&query_lower)
-                        || skill.description.to_lowercase().contains(&query_lower)
-                        || skill.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
-                    {
-                        found = true;
-                        println!(
-                            "  {} {} (from {})",
-                            skill.name.cyan().bold(),
-                            format!("v{}", skill.version).dimmed(),
-                            name.dimmed()
-                        );
-                        println!("    {}", skill.description);
-                        if !skill.tags.is_empty() {
-                            println!("    Tags: {}", skill.tags.join(", ").dimmed());
+    // Also search legacy marketplaces
+    let marketplaces = load_known_marketplaces()?;
+    if !marketplaces.marketplaces.is_empty() {
+        let mut marketplace_found = false;
+        for (name, entry) in &marketplaces.marketplaces {
+            if let Some(ref location) = entry.install_location {
+                let manifest_path = Path::new(location).join(".fgp").join("marketplace.json");
+                if manifest_path.exists() {
+                    let content = fs::read_to_string(&manifest_path)?;
+                    let manifest: MarketplaceManifest = serde_json::from_str(&content)?;
+
+                    for skill in &manifest.skills {
+                        let query_lower = query.to_lowercase();
+                        if skill.name.to_lowercase().contains(&query_lower)
+                            || skill.description.to_lowercase().contains(&query_lower)
+                            || skill.tags.iter().any(|t| t.to_lowercase().contains(&query_lower))
+                        {
+                            if !marketplace_found {
+                                println!("{}", "From marketplaces (legacy):".bold().underline());
+                                marketplace_found = true;
+                            }
+                            found = true;
+                            println!(
+                                "  {} {} (from {})",
+                                skill.name.cyan().bold(),
+                                format!("v{}", skill.version).dimmed(),
+                                name.dimmed()
+                            );
+                            println!("    {}", skill.description);
+                            if !skill.tags.is_empty() {
+                                println!("    Tags: {}", skill.tags.join(", ").dimmed());
+                            }
+                            println!();
                         }
-                        println!();
                     }
                 }
             }
@@ -509,6 +538,12 @@ pub fn search(query: &str) -> Result<()> {
 
     if !found {
         println!("{}", "No skills found matching your query.".yellow());
+        println!();
+        println!("Add a tap to search more skills:");
+        println!(
+            "  {}",
+            "fgp skill tap add fast-gateway-protocol/official-skills".cyan()
+        );
     }
 
     Ok(())
@@ -522,7 +557,14 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
         name.cyan()
     );
 
-    // First, try to find the skill in marketplaces
+    // First, try to find the skill in taps (new skill.yaml format)
+    if from_marketplace.is_none() {
+        if let Ok(Some((tap_name, skill_path, manifest))) = skill_tap::find_skill(name) {
+            return install_from_tap(&tap_name, &skill_path, &manifest);
+        }
+    }
+
+    // Fall back to legacy marketplaces
     let marketplaces = load_known_marketplaces()?;
     let mut skill_info: Option<(String, MarketplaceSkill, PathBuf)> = None;
 
@@ -559,7 +601,7 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
         Some(info) => info,
         None => {
             bail!(
-                "Skill '{}' not found in any marketplace. Run 'fgp skill marketplace update' first.",
+                "Skill '{}' not found. Add a tap first:\n  fgp skill tap add fast-gateway-protocol/official-skills",
                 name
             );
         }
@@ -742,6 +784,240 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
     );
 
     Ok(())
+}
+
+/// Install a skill from a tap (skill.yaml format)
+fn install_from_tap(
+    tap_name: &str,
+    skill_path: &Path,
+    manifest: &super::skill_validate::SkillManifest,
+) -> Result<()> {
+    println!("  Found in tap: {}", tap_name.green());
+    println!("  Version: {}", manifest.version);
+    println!("  Path: {}", skill_path.display());
+
+    // Check daemon dependencies
+    if !manifest.daemons.is_empty() {
+        println!();
+        println!("  {}:", "Required daemons".bold());
+        for daemon in &manifest.daemons {
+            let optional = if daemon.optional { " (optional)" } else { "" };
+            println!("    - {}{}", daemon.name.cyan(), optional.dimmed());
+        }
+    }
+
+    // Create skills directory
+    let skills_install_dir = skills_dir().join("installed").join(&manifest.name);
+    fs::create_dir_all(&skills_install_dir)?;
+
+    // Symlink skill to installed directory
+    let source_link = skills_install_dir.join("source");
+    if source_link.exists() || source_link.read_link().is_ok() {
+        let _ = fs::remove_file(&source_link);
+    }
+    std::os::unix::fs::symlink(skill_path, &source_link)?;
+
+    // Get git commit SHA if available
+    let git_sha = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(skill_path)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+            } else {
+                None
+            }
+        });
+
+    // Update installed_skills.json
+    let mut installed = load_installed_skills()?;
+    let skill_key = format!("{}@{}", manifest.name, tap_name);
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let entry = InstalledSkill {
+        scope: "tap".to_string(),
+        install_path: skills_install_dir.to_string_lossy().to_string(),
+        version: manifest.version.clone(),
+        installed_at: now.clone(),
+        last_updated: now,
+        git_commit_sha: git_sha,
+        binary_path: None, // skill.yaml packages typically don't have binaries
+    };
+
+    installed.skills.insert(skill_key.clone(), vec![entry]);
+    save_installed_skills(&installed)?;
+
+    // Export to agents if instructions are available
+    println!();
+    println!("  {}:", "Exporting to agents".bold());
+
+    if let Some(ref instructions) = manifest.instructions {
+        // Claude Code
+        if instructions.claude_code.is_some() || instructions.core.is_some() {
+            export_tap_skill_to_claude(skill_path, manifest)?;
+        }
+
+        // Cursor
+        if instructions.cursor.is_some() {
+            export_tap_skill_to_cursor(skill_path, manifest)?;
+        }
+
+        // Codex
+        if instructions.codex.is_some() {
+            println!("    {} Codex: available (use 'fgp skill export codex {}')", "○".dimmed(), manifest.name);
+        }
+
+        // MCP
+        if instructions.mcp.is_some() {
+            println!("    {} MCP: available (use 'fgp skill export mcp {}')", "○".dimmed(), manifest.name);
+        }
+    }
+
+    println!();
+    println!(
+        "{} {} installed successfully!",
+        "✓".green().bold(),
+        manifest.name.cyan()
+    );
+    println!();
+    println!("Use the skill by invoking its triggers:");
+    if let Some(ref triggers) = manifest.triggers {
+        if !triggers.keywords.is_empty() {
+            println!("  Keywords: {}", triggers.keywords.join(", ").cyan());
+        }
+    }
+
+    Ok(())
+}
+
+/// Export a tap skill to Claude Code
+fn export_tap_skill_to_claude(
+    skill_path: &Path,
+    manifest: &super::skill_validate::SkillManifest,
+) -> Result<()> {
+    let claude_skills_dir = dirs::home_dir()
+        .context("Could not find home directory")?
+        .join(".claude")
+        .join("skills")
+        .join(format!("{}-fgp", manifest.name));
+
+    fs::create_dir_all(&claude_skills_dir)?;
+    let skill_md_path = claude_skills_dir.join("SKILL.md");
+
+    // Try to read instruction file or generate from manifest
+    let content = if let Some(ref instructions) = manifest.instructions {
+        if let Some(ref claude_file) = instructions.claude_code {
+            let src_path = skill_path.join(claude_file);
+            if src_path.exists() {
+                fs::read_to_string(&src_path)?
+            } else if let Some(ref core_file) = instructions.core {
+                let core_path = skill_path.join(core_file);
+                if core_path.exists() {
+                    fs::read_to_string(&core_path)?
+                } else {
+                    generate_skill_md_from_manifest(manifest)
+                }
+            } else {
+                generate_skill_md_from_manifest(manifest)
+            }
+        } else if let Some(ref core_file) = instructions.core {
+            let core_path = skill_path.join(core_file);
+            if core_path.exists() {
+                fs::read_to_string(&core_path)?
+            } else {
+                generate_skill_md_from_manifest(manifest)
+            }
+        } else {
+            generate_skill_md_from_manifest(manifest)
+        }
+    } else {
+        generate_skill_md_from_manifest(manifest)
+    };
+
+    fs::write(&skill_md_path, &content)?;
+    println!("    {} Claude: {}", "✓".green(), skill_md_path.display());
+
+    Ok(())
+}
+
+/// Export a tap skill to Cursor
+fn export_tap_skill_to_cursor(
+    skill_path: &Path,
+    manifest: &super::skill_validate::SkillManifest,
+) -> Result<()> {
+    if let Some(ref instructions) = manifest.instructions {
+        if let Some(ref cursor_file) = instructions.cursor {
+            let src_path = skill_path.join(cursor_file);
+            if src_path.exists() {
+                // Read and copy to .cursorrules in current project
+                // or to a global location
+                println!("    {} Cursor: {} (copy to project)", "✓".green(), cursor_file);
+            } else {
+                println!("    {} Cursor: file not found ({})", "⚠".yellow(), cursor_file);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Generate SKILL.md content from manifest
+fn generate_skill_md_from_manifest(manifest: &super::skill_validate::SkillManifest) -> String {
+    let mut md = String::new();
+
+    // Frontmatter
+    md.push_str("---\n");
+    md.push_str(&format!("name: {}-fgp\n", manifest.name));
+    md.push_str(&format!("description: {}\n", manifest.description));
+    md.push_str("tools: [\"Bash\"]\n");
+    if let Some(ref triggers) = manifest.triggers {
+        if !triggers.keywords.is_empty() {
+            md.push_str("triggers:\n");
+            for kw in &triggers.keywords {
+                md.push_str(&format!("  - \"{}\"\n", kw));
+            }
+        }
+    }
+    md.push_str("---\n\n");
+
+    // Title
+    md.push_str(&format!("# {} - FGP Skill\n\n", manifest.name));
+    md.push_str(&format!("{}\n\n", manifest.description));
+
+    // Daemons
+    if !manifest.daemons.is_empty() {
+        md.push_str("## Required Daemons\n\n");
+        for daemon in &manifest.daemons {
+            let optional = if daemon.optional { " (optional)" } else { "" };
+            md.push_str(&format!("- `{}`{}\n", daemon.name, optional));
+        }
+        md.push_str("\n");
+    }
+
+    // Triggers
+    if let Some(ref triggers) = manifest.triggers {
+        md.push_str("## Trigger Detection\n\n");
+        md.push_str("When user mentions:\n");
+        for kw in &triggers.keywords {
+            md.push_str(&format!("- \"{}\"\n", kw));
+        }
+        md.push_str("\n");
+    }
+
+    // Workflows
+    if !manifest.workflows.is_empty() {
+        md.push_str("## Workflows\n\n");
+        for (name, workflow) in &manifest.workflows {
+            md.push_str(&format!("### {}\n", name));
+            if let Some(ref desc) = workflow.description {
+                md.push_str(&format!("{}\n", desc));
+            }
+            md.push_str(&format!("```bash\nfgp workflow run {} --file {}\n```\n\n", name, workflow.file));
+        }
+    }
+
+    md
 }
 
 /// Update marketplaces (git pull)

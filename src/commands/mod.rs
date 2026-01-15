@@ -10,6 +10,7 @@ pub mod methods;
 pub mod new;
 pub mod skill;
 pub mod skill_export;
+pub mod skill_tap;
 pub mod skill_validate;
 pub mod start;
 pub mod status;

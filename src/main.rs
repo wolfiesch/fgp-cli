@@ -230,7 +230,13 @@ enum SkillAction {
         output: Option<String>,
     },
 
-    /// Manage skill marketplaces
+    /// Manage skill taps (GitHub-based skill repositories)
+    Tap {
+        #[command(subcommand)]
+        action: TapAction,
+    },
+
+    /// Manage skill marketplaces (legacy)
     Marketplace {
         #[command(subcommand)]
         action: MarketplaceAction,
@@ -240,6 +246,33 @@ enum SkillAction {
     Mcp {
         #[command(subcommand)]
         action: McpAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum TapAction {
+    /// Add a GitHub tap (e.g., fast-gateway-protocol/official-skills)
+    Add {
+        /// GitHub owner/repo (e.g., "fast-gateway-protocol/official-skills")
+        repo: String,
+    },
+
+    /// Remove a tap
+    Remove {
+        /// Tap name to remove
+        name: String,
+    },
+
+    /// List all configured taps
+    List,
+
+    /// Update all taps (git pull)
+    Update,
+
+    /// Show skills available in a specific tap
+    Show {
+        /// Tap name
+        name: String,
     },
 }
 
@@ -386,6 +419,13 @@ fn main() -> Result<()> {
             SkillAction::Export { target, skill, output } => {
                 commands::skill_export::export(&target, &skill, output.as_deref())
             }
+            SkillAction::Tap { action } => match action {
+                TapAction::Add { repo } => commands::skill_tap::add(&repo),
+                TapAction::Remove { name } => commands::skill_tap::remove(&name),
+                TapAction::List => commands::skill_tap::list(),
+                TapAction::Update => commands::skill_tap::update(),
+                TapAction::Show { name } => commands::skill_tap::show(&name),
+            },
             SkillAction::Marketplace { action } => match action {
                 MarketplaceAction::List => commands::skill::marketplace_list(),
                 MarketplaceAction::Add { url } => commands::skill::marketplace_add(&url),
