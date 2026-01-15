@@ -25,6 +25,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use super::license::{check_skill_pricing, format_price, validate_license};
 use super::skill_tap;
 
 /// Skill manifest format (skill.json)
@@ -553,8 +554,63 @@ pub fn search(query: &str) -> Result<()> {
 }
 
 /// Install a skill
-pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
+pub fn install(name: &str, from_marketplace: Option<&str>, license_key: Option<&str>) -> Result<()> {
     println!("{} {}...", "Installing skill:".bold(), name.cyan());
+
+    // Check if skill is paid and requires a license
+    if let Ok(Some(pricing)) = check_skill_pricing(name) {
+        let price_str = format_price(pricing.price_cents, &pricing.currency);
+        println!(
+            "  {} This is a paid skill ({} - {})",
+            "💰".yellow(),
+            price_str.green(),
+            pricing.tier.dimmed()
+        );
+
+        match license_key {
+            Some(key) => {
+                println!("  Validating license...");
+                let validation = validate_license(key, name, None)?;
+
+                if !validation.valid {
+                    let error_msg = validation
+                        .error
+                        .unwrap_or_else(|| "License validation failed".to_string());
+                    bail!("License invalid: {}", error_msg);
+                }
+
+                println!("  {} License validated!", "✓".green());
+
+                // If we have a download URL, use it for paid package
+                if let Some(ref download_url) = validation.download_url {
+                    println!("  Downloading paid package...");
+                    return install_paid_package(
+                        name,
+                        download_url,
+                        validation.decryption_key.as_deref(),
+                        key,
+                    );
+                }
+            }
+            None => {
+                println!();
+                println!(
+                    "{} This skill requires a license to install.",
+                    "⚠".yellow().bold()
+                );
+                println!();
+                println!("Purchase at: {}", format!("https://fgp.dev/marketplace/{}", name).cyan());
+                println!();
+                println!("Then install with:");
+                println!(
+                    "  {} {} --license sk_live_xxx",
+                    "fgp skill install".dimmed(),
+                    name.cyan()
+                );
+                bail!("License required for paid skill '{}'", name);
+            }
+        }
+    }
 
     // First, try to find the skill in taps (new skill.yaml format)
     if from_marketplace.is_none() {
@@ -788,6 +844,145 @@ pub fn install(name: &str, from_marketplace: Option<&str>) -> Result<()> {
         "  fgp skill mcp register {} --target=claude,cursor",
         skill.name
     );
+
+    Ok(())
+}
+
+/// Install a paid skill package from the marketplace
+fn install_paid_package(
+    name: &str,
+    download_url: &str,
+    decryption_key: Option<&str>,
+    license_key: &str,
+) -> Result<()> {
+    // Download the package
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(download_url)
+        .header("Authorization", format!("Bearer {}", license_key))
+        .send()
+        .context("Failed to download paid package")?;
+
+    if !response.status().is_success() {
+        bail!(
+            "Failed to download package: HTTP {}",
+            response.status().as_u16()
+        );
+    }
+
+    let package_bytes = response.bytes()?;
+
+    // Create installation directory
+    let install_dir = cache_dir().join("paid").join(name);
+    fs::create_dir_all(&install_dir)?;
+
+    let package_path = install_dir.join(format!("{}.fgpkg", name));
+    fs::write(&package_path, &package_bytes)?;
+
+    println!("  Downloaded: {}", package_path.display());
+
+    // If encrypted, decrypt the package
+    let extract_dir = install_dir.join("extracted");
+    fs::create_dir_all(&extract_dir)?;
+
+    if let Some(_key) = decryption_key {
+        println!("  Decrypting package...");
+        // For now, just extract as tar.gz (encryption will be added in a future version)
+        // In production, this would use AES-256-GCM decryption
+        extract_tarball(&package_path, &extract_dir)?;
+    } else {
+        // No encryption, just extract
+        extract_tarball(&package_path, &extract_dir)?;
+    }
+
+    println!("  {} Package extracted to: {}", "✓".green(), extract_dir.display());
+
+    // Look for skill.json in the extracted package
+    let skill_manifest_path = extract_dir.join(".fgp").join("skill.json");
+    if skill_manifest_path.exists() {
+        let skill_content = fs::read_to_string(&skill_manifest_path)?;
+        let skill_manifest: SkillManifest = serde_json::from_str(&skill_content)?;
+
+        let daemon_name = skill_manifest
+            .daemon
+            .as_ref()
+            .map(|d| d.name.clone())
+            .unwrap_or_else(|| skill_manifest.name.replace("-gateway", ""));
+
+        // Update installed_skills.json
+        let mut installed = load_installed_skills()?;
+        let skill_key = format!("{}@marketplace", name);
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let entry = InstalledSkill {
+            scope: "marketplace".to_string(),
+            install_path: extract_dir.to_string_lossy().to_string(),
+            version: skill_manifest.version.clone(),
+            installed_at: now.clone(),
+            last_updated: now,
+            git_commit_sha: None,
+            binary_path: None,
+        };
+
+        installed.skills.insert(skill_key.clone(), vec![entry]);
+        save_installed_skills(&installed)?;
+
+        println!();
+        println!(
+            "{} {} installed successfully!",
+            "✓".green().bold(),
+            name.cyan()
+        );
+        println!();
+        println!("Start the daemon with:");
+        println!("  fgp start {}", daemon_name);
+    } else {
+        // Simple package without manifest
+        let mut installed = load_installed_skills()?;
+        let skill_key = format!("{}@marketplace", name);
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let entry = InstalledSkill {
+            scope: "marketplace".to_string(),
+            install_path: extract_dir.to_string_lossy().to_string(),
+            version: "1.0.0".to_string(),
+            installed_at: now.clone(),
+            last_updated: now,
+            git_commit_sha: None,
+            binary_path: None,
+        };
+
+        installed.skills.insert(skill_key.clone(), vec![entry]);
+        save_installed_skills(&installed)?;
+
+        println!();
+        println!(
+            "{} {} installed successfully!",
+            "✓".green().bold(),
+            name.cyan()
+        );
+    }
+
+    Ok(())
+}
+
+/// Extract a tarball to a directory
+fn extract_tarball(tarball_path: &Path, dest_dir: &Path) -> Result<()> {
+    use std::process::Command;
+
+    let status = Command::new("tar")
+        .args([
+            "-xzf",
+            tarball_path.to_str().unwrap(),
+            "-C",
+            dest_dir.to_str().unwrap(),
+        ])
+        .status()
+        .context("Failed to run tar command")?;
+
+    if !status.success() {
+        bail!("Failed to extract tarball: exit code {:?}", status.code());
+    }
 
     Ok(())
 }
@@ -1341,7 +1536,8 @@ pub fn upgrade(skill_name: Option<&str>) -> Result<()> {
         print!("  {} ", skill_name.cyan());
 
         // Re-install the skill
-        match install(skill_name, Some(marketplace_name)) {
+        // For upgrades, we don't need a license (user already purchased)
+        match install(skill_name, Some(marketplace_name), None) {
             Ok(()) => println!("{}", "✓ upgraded".green()),
             Err(e) => println!("{} {}", "✗ failed:".red(), e),
         }

@@ -260,6 +260,10 @@ enum SkillAction {
         /// Specific marketplace to install from
         #[arg(short, long)]
         from: Option<String>,
+
+        /// License key for paid skills (e.g., "sk_live_xxx")
+        #[arg(short, long)]
+        license: Option<String>,
     },
 
     /// Check for skill updates
@@ -300,6 +304,28 @@ enum SkillAction {
         /// Output directory (default: current directory)
         #[arg(short, long)]
         output: Option<String>,
+    },
+
+    /// Import a skill from agent-specific format to canonical FGP format
+    Import {
+        /// Path to the skill file (e.g., SKILL.md, .cursorrules)
+        path: String,
+
+        /// Source format (auto-detected if not specified)
+        #[arg(short, long)]
+        format: Option<String>,
+
+        /// Output directory (default: ./<skill-name>/)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Show what would be imported without writing files
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Enrich with metadata from daemon registry (method descriptions, auth, etc.)
+        #[arg(long)]
+        enrich: bool,
     },
 
     /// Manage skill taps (GitHub-based skill repositories)
@@ -499,7 +525,7 @@ fn main() -> Result<()> {
         Commands::Skill { action } => match action {
             SkillAction::List => commands::skill::list(),
             SkillAction::Search { query } => commands::skill::search(&query),
-            SkillAction::Install { name, from } => commands::skill::install(&name, from.as_deref()),
+            SkillAction::Install { name, from, license } => commands::skill::install(&name, from.as_deref(), license.as_deref()),
             SkillAction::Update => commands::skill::check_updates(),
             SkillAction::Upgrade { skill } => commands::skill::upgrade(skill.as_deref()),
             SkillAction::Remove { name } => commands::skill::remove(&name),
@@ -510,6 +536,13 @@ fn main() -> Result<()> {
                 skill,
                 output,
             } => commands::skill_export::export(&target, &skill, output.as_deref()),
+            SkillAction::Import {
+                path,
+                format,
+                output,
+                dry_run,
+                enrich,
+            } => commands::skill_import::import_skill(&path, format.as_deref(), output.as_deref(), dry_run, enrich),
             SkillAction::Tap { action } => match action {
                 TapAction::Add { repo } => commands::skill_tap::add(&repo),
                 TapAction::Remove { name } => commands::skill_tap::remove(&name),
