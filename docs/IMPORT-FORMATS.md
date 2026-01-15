@@ -109,19 +109,31 @@ Methods are detected via regex:
 
 ## Windsurf (*.windsurf.md)
 
-**Fidelity: ~70%** | **Pattern: `*.windsurf.md`**
+**Fidelity: ~85%** | **Quality Grade: B (87%)** | **Pattern: `*.windsurf.md`**
 
-Similar to Claude Code with YAML frontmatter, but may have different field names.
+High-fidelity format with YAML frontmatter. Supports capabilities-based daemon mapping.
 
 ### Structure
 
 ```markdown
 ---
 name: my-cascade
+version: 2.0.0
 description: Cascade rules for project
+author: Developer Name
 capabilities:
   - name: email
-    tools: [gmail.send, gmail.read]
+    tools:
+      - gmail.inbox
+      - gmail.send
+  - name: calendar
+    tools:
+      - calendar.list
+      - calendar.create
+triggers:
+  keywords:
+    - email
+    - calendar
 ---
 
 # Cascade Rules
@@ -135,14 +147,23 @@ Instructions here...
 |-------|--------|------------|
 | name | Frontmatter `name` | High |
 | description | Frontmatter `description` | High |
-| version | Frontmatter `version` or default | Medium |
-| daemons | Frontmatter `capabilities` | Medium |
+| version | Frontmatter `version` | High |
+| author | Frontmatter `author` | High |
+| daemons | Frontmatter `capabilities[].tools` | High |
+| triggers | Frontmatter `triggers.keywords` | High |
 | instructions | Markdown body | High |
+
+### Capabilities → Daemons Mapping
+
+Tools in capabilities are parsed as `daemon.method`:
+- `gmail.inbox` → daemon: `gmail`, method: `inbox`
+- `calendar.list` → daemon: `calendar`, method: `list`
 
 ### Limitations
 
-- Similar to Claude Code limitations
-- Capabilities may not map directly to FGP daemons
+- Workflows not included in export format
+- Config options not recoverable
+- Email field for author not extracted (only name)
 
 ---
 
@@ -421,46 +442,52 @@ importing to FGP skill.yaml, and measuring what data was preserved.
 
 | Format | Quality Grade | Overall Fidelity | Daemon Recovery | Best Use Case |
 |--------|---------------|------------------|-----------------|---------------|
+| **Windsurf** | 🔵 B (87%) | ~85% | ✅ Full | Cascades with capabilities |
 | **Claude Code** | 🔵 B (82%) | ~65% | ⚠️ Partial | Full skill definitions with frontmatter |
 | **Codex** | 🟡 C (75%) | ~70% | ✅ Full | Tool-centric configurations |
 | **Cursor** | 🔴 F (36%) | ~30% | ❌ None | Project-level coding guidelines |
+| **Zed** | 🔴 F (28%) | ~25% | ❌ None | Context-only rules |
 | **MCP** | 🔴 F (28%) | ~25% | ❌ None | API/tool schema definitions |
 
 ### Field Recovery by Format
 
-| Field | Claude Code | Codex | Cursor | MCP |
-|-------|-------------|-------|--------|-----|
-| **name** | ✅ High | ✅ High | ⚠️ Medium (from title) | ✅ High |
-| **version** | ✅ High | ❌ Default | ❌ Default | ❌ Default |
-| **description** | ✅ High | ✅ High | ⚠️ Medium (from intro) | ✅ High |
-| **instructions** | ✅ High | ✅ High | ✅ High | ⚠️ Medium (raw JSON) |
-| **daemons** | ⚠️ Medium (33%) | ✅ Full (100%) | ❌ None | ❌ None |
-| **triggers** | ⚠️ Medium | ❌ None | ❌ None | ❌ None |
-| **workflows** | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A |
-| **config** | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A |
-| **auth** | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched |
+| Field | Windsurf | Claude Code | Codex | Cursor | MCP |
+|-------|----------|-------------|-------|--------|-----|
+| **name** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High |
+| **version** | ✅ High | ✅ High | ❌ Default | ❌ Default | ❌ Default |
+| **description** | ✅ High | ✅ High | ✅ High | ⚠️ Medium | ✅ High |
+| **author** | ✅ High | ⚠️ Partial | ❌ None | ❌ None | ❌ None |
+| **instructions** | ✅ High | ✅ High | ✅ High | ✅ High | ⚠️ Medium |
+| **daemons** | ✅ Full | ⚠️ Medium (33%) | ✅ Full | ❌ None | ❌ None |
+| **triggers** | ✅ High | ⚠️ Medium | ❌ None | ❌ None | ❌ None |
+| **workflows** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A |
+| **config** | ❌ N/A | ❌ Lost | ❌ N/A | ❌ N/A | ❌ N/A |
+| **auth** | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched | ⚠️ Enriched |
 
 ### Key Insights
 
-1. **Codex outperforms Claude Code for daemon recovery** because it uses explicit
-   `daemon.method` tool names that parse cleanly, while Claude Code relies on
-   markdown pattern extraction.
+1. **Windsurf is the highest-fidelity format** because its `capabilities` structure
+   maps directly to FGP's daemon/method model, plus it has explicit triggers and author.
 
-2. **Claude Code scores higher overall** because it preserves more metadata
-   (version, triggers) via YAML frontmatter.
+2. **Codex and Windsurf both achieve full daemon recovery** because they use explicit
+   `daemon.method` tool names that parse cleanly.
 
-3. **Registry enrichment helps all formats** by recovering auth requirements and
+3. **Claude Code scores well overall** but loses some daemon methods because they're
+   embedded in markdown documentation rather than structured data.
+
+4. **Registry enrichment helps all formats** by recovering auth requirements and
    method details when daemons are recognized in the FGP daemon registry.
 
-4. **Cursor/Aider formats are documentation-centric** - excellent for preserving
+5. **Cursor/Zed/Aider formats are documentation-centric** - excellent for preserving
    instructions but lose all structural metadata.
 
-5. **MCP format is API-focused** - preserves tool schemas but doesn't map
+6. **MCP format is API-focused** - preserves tool schemas but doesn't map
    naturally to FGP's daemon model.
 
 ### Recommendations
 
-- **Import from Claude Code** when available - highest overall fidelity
+- **Import from Windsurf** when available - highest overall fidelity (87%)
+- **Import from Claude Code** for skills with rich markdown documentation
 - **Import from Codex** when you need reliable daemon/method recovery
 - **Always use `--enrich`** to recover auth and method details from registry
 - **Review `[*INCOMPLETE*]` markers** after import - these indicate fields needing manual completion
